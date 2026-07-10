@@ -364,7 +364,12 @@ async function addNote(contactId, body) {
   if (!contactId || !noteBody || noteBody.length > 65536) return { state: "error_invalid_note" };
 
   const r = await client.createNote(contactId, noteBody);
-  if (r.error) return { state: mapClientErrorState(r) };
+  if (r.error) {
+    const detail = r.detail && typeof r.detail.message === "string"
+      ? r.detail.message.slice(0, 240)
+      : "";
+    return { state: mapClientErrorState(r), error: r.error, detail };
+  }
   return { state: "note_added", noteId: r.noteId };
 }
 

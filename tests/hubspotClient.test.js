@@ -247,6 +247,19 @@ describe("createNote", () => {
     expect(result.error).toBe("validation");
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  test("preserves HubSpot's validation message on a rejected note", async () => {
+    mockFetch([{ status: 400, body: {
+      status: "error",
+      message: "Some required properties were not set.",
+      category: "VALIDATION_ERROR",
+    } }]);
+    const client = createClient({ key: "pat-test" });
+    const result = await client.createNote("5555", "Follow up next week.");
+
+    expect(result.error).toBe("unknown");
+    expect(result.detail.message).toBe("Some required properties were not set.");
+  });
 });
 
 describe("error mapping", () => {

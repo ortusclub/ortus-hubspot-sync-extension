@@ -1,4 +1,4 @@
-const { computeOverlay, saveDirty, manualDirty } = require("../popupLogic.js");
+const { computeOverlay, saveDirty, manualDirty, noteErrorText } = require("../popupLogic.js");
 
 describe("computeOverlay — the auto-fill overlay + safety rule", () => {
   const stored = { status: "New", tag: "cold-list" };
@@ -73,5 +73,18 @@ describe("manualDirty — fields vs the post-overlay suggestion (controls the na
   test("false for a whitespace-only note draft", () => {
     const suggestion = { status: "New", tag: "event-x" };
     expect(manualDirty({ ...suggestion }, suggestion, "   ")).toBe(false);
+  });
+});
+
+describe("noteErrorText", () => {
+  test("shows HubSpot's actual message when the background supplies one", () => {
+    expect(noteErrorText(
+      { detail: "Property values were not valid" },
+      "HubSpot error — try again"
+    )).toBe("Property values were not valid");
+  });
+
+  test("falls back to the mapped client error", () => {
+    expect(noteErrorText({}, "Missing write scope")).toBe("Missing write scope");
   });
 });

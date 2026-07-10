@@ -45,7 +45,13 @@
         || str(noteDraft).trim() !== "";
   }
 
-  const api = { computeOverlay, saveDirty, manualDirty };
+  function noteErrorText(response, fallback) {
+    const detail = str(response && response.detail).trim();
+    if (detail) return detail.slice(0, 240);
+    return str(fallback) || "HubSpot error — try again";
+  }
+
+  const api = { computeOverlay, saveDirty, manualDirty, noteErrorText };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.OrtusPopupLogic = api;
 })(typeof self !== "undefined" ? self : globalThis);

@@ -582,7 +582,10 @@ async function onAddNote() {
     els.noteFeedback.textContent = "Note added";
   } else {
     els.noteFeedback.className = "save-feedback show err";
-    els.noteFeedback.textContent = fieldsErrorText(r && r.state);
+    els.noteFeedback.textContent = OrtusPopupLogic.noteErrorText(
+      r,
+      fieldsErrorText(r && r.state)
+    );
   }
   refreshNoteEnabled();
   consumePendingIfClean();
