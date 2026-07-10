@@ -1,0 +1,14 @@
+{
+  "name": "ortus-hs-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cloudflare Worker that fronts the HubSpot API for the Ortus HubSpot Sync extension.",
+  "scripts": {
+    "login": "wrangler login",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.102.0"
+  }
+}

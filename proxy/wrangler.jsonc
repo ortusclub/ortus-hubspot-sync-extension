@@ -1,0 +1,15 @@
+{
+  // Cloudflare Worker config for ortus-hs-proxy.
+  // Secrets (HUBSPOT_TOKEN, PROXY_KEY) are NOT here — set them with
+  // `wrangler secret put`. Only non-secret settings live in this file.
+  "name": "ortus-hs-proxy",
+  "main": "worker.js",
+  "compatibility_date": "2026-06-19",
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "vars": {
+    // Set this AFTER the extension's id is known (it's derived from the
+    // self-host signing key in Phase 2) to lock the proxy to only our
+    // extension, e.g. "chrome-extension://<id>". Empty = origin check skipped.
+    "ALLOWED_ORIGIN": ""
+  }
+}

@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ortus HubSpot Sync — Popup States</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink:        #16140F;
+    --ink-2:      #2C2A24;
+    --ink-soft:   #6B6557;
+    --ink-faint:  #A39B89;
+    --paper:      #FDFBF7;
+    --paper-2:    #F6F2E9;
+    --paper-warm: #F1ECDF;
+    --rule:       #E5DFD0;
+    --rule-2:     #C9C0AC;
+    --gold:       #C99046;
+    --gold-deep:  #9B6A26;
+    --gold-warm:  #F0CE89;
+    --gold-tint:  #F6E8C8;
+    --ok:         #4F7A4D;
+    --err:        #8B3A2E;
+    --serif:      "Newsreader", "Charter", "Iowan Old Style", Georgia, serif;
+    --sans:       "Geist", "InterDisplay", system-ui, sans-serif;
+    --mono:       "Geist Mono", "JetBrains Mono", "SFMono-Regular", monospace;
+    --ease:       cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    background: #2C2A24;
+    color: #F6F2E9;
+    padding: 40px 24px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1.title {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 28px; letter-spacing: -0.018em;
+    margin: 0 0 6px; text-align: center;
+  }
+  p.subtitle {
+    text-align: center; margin: 0 0 36px;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(246,242,233,0.5);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 36px;
+    max-width: 1320px; margin: 0 auto;
+  }
+  .frame { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .frame-label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(246,242,233,0.7);
+  }
+
+  /* ── Popup chrome (1:1 with QuickConnect) ── */
+  .popup-shell {
+    width: 390px;
+    background: linear-gradient(180deg, #ECE5D2 0%, #DCD3BC 100%);
+    padding: 8px;
+    border-radius: 22px;
+    color: var(--ink-2);
+    font-size: 13px;
+  }
+  .popup {
+    background: var(--paper);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.9) inset,
+      0 0 0 1px rgba(60,40,10,0.04);
+  }
+  .popup::before {
+    content: ""; position: absolute; inset: 0;
+    pointer-events: none; opacity: 0.5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.32  0 0 0 0 0.27  0 0 0 0 0.18  0 0 0 0.07 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+
+  /* Masthead */
+  .masthead {
+    padding: 18px 20px 16px;
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+    position: relative;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .ortus-mark {
+    position: relative; width: 24px; height: 24px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ink);
+    font-family: var(--serif); font-style: italic; font-weight: 500;
+    font-size: 21px; line-height: 1; letter-spacing: -0.02em;
+  }
+  .ortus-mark::after {
+    content: ""; position: absolute; right: -5px; bottom: 4px;
+    width: 4px; height: 4px; border-radius: 50%; background: var(--gold);
+  }
+  .brand-name { font-family: var(--serif); font-weight: 500; font-size: 14px; color: var(--ink); }
+  .brand-sub {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint); margin-top: 1px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 7px 2px 5px;
+    border-radius: 999px;
+    background: var(--gold-tint);
+    border: 1px solid var(--gold-deep);
+    color: #6F4715;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 600;
+  }
+  .live-badge[data-state="standby"] { background: transparent; border-color: var(--rule-2); color: var(--ink-soft); }
+  .live-badge[data-state="error"]   { background: rgba(139,58,46,0.08); border-color: var(--err); color: var(--err); }
+  .live-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold-deep); }
+  .live-badge[data-state="standby"] .dot { background: var(--ink-faint); }
+  .live-badge[data-state="error"] .dot   { background: var(--err); }
+
+  /* Dossier */
+  .dossier { padding: 22px 22px 22px; border-bottom: 1px solid var(--rule); }
+  .dossier .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold-deep); margin-bottom: 12px;
+  }
+  .dossier .eyebrow::before { content: ""; width: 16px; height: 1px; background: var(--gold-deep); }
+  .dossier .eyebrow.muted { color: var(--ink-faint); }
+  .dossier .eyebrow.muted::before { background: var(--ink-faint); }
+  .dossier .eyebrow.error { color: var(--err); }
+  .dossier .eyebrow.error::before { background: var(--err); }
+  .dossier .eyebrow.ok { color: var(--ok); }
+  .dossier .eyebrow.ok::before { background: var(--ok); }
+  .dossier-name {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 26px; line-height: 1.05;
+    letter-spacing: -0.018em; color: var(--ink);
+    text-wrap: balance;
+  }
+  .dossier-name em { font-style: italic; font-weight: 400; }
+  .dossier.standby .dossier-name { font-size: 22px; line-height: 1.15; }
+  .dossier-role {
+    margin-top: 4px;
+    font-size: 12px; line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .dossier-role .sep { color: var(--ink-faint); margin: 0 6px; }
+  .meta-line {
+    margin-top: 10px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-faint); letter-spacing: 0.06em;
+    word-break: break-all;
+  }
+  .meta-line b { color: var(--ink-soft); font-weight: 600; }
+  .since-line {
+    margin-top: 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .since-line a {
+    color: var(--gold-deep);
+    border-bottom: 1px solid rgba(155,106,38,0.3);
+    text-decoration: none; padding-bottom: 1px;
+  }
+  .warning-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(201,144,70,0.1);
+    border: 1px solid var(--gold);
+    color: #6F4715;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .warning-chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+
+  /* CTAs */
+  .actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 40px; padding: 4px 4px 4px 18px;
+    border-radius: 999px;
+    background: var(--ink); color: var(--paper); border: 0;
+    font: 500 13px/1 var(--sans); cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.07) inset, 0 12px 28px -10px rgba(20,15,5,0.55);
+  }
+  .cta .label-sub { color: rgba(255,255,255,0.5); margin-left: 4px; font-size: 11px; font-family: var(--mono); letter-spacing: 0.06em; }
+  .cta .icon-pod {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--gold); color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cta.success { background: var(--ok); }
+  .cta.success .icon-pod { background: rgba(255,255,255,0.85); color: var(--ok); }
+  .cta:disabled { opacity: 0.45; cursor: not-allowed; }
+  .ghost {
+    height: 40px; padding: 0 16px;
+    border-radius: 999px;
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--rule-2);
+    font: 500 12px/1 var(--sans); cursor: pointer;
+  }
+  .ghost.danger { color: var(--err); border-color: rgba(139,58,46,0.4); }
+
+  /* Spinner shimmer */
+  .shimmer-headline {
+    height: 26px; width: 70%;
+    background: linear-gradient(90deg, var(--paper-2) 0%, var(--rule) 50%, var(--paper-2) 100%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: shimmer 1.6s var(--ease) infinite;
+  }
+  .shimmer-line {
+    height: 12px; width: 50%; margin-top: 10px;
+    background: linear-gradient(90deg, var(--paper-2) 0%, var(--rule) 50%, var(--paper-2) 100%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: shimmer 1.6s var(--ease) infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Tabs (Settings) */
+  .tabs {
+    display: flex; gap: 0; padding: 0 20px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .tab {
+    background: transparent; border: 0; cursor: pointer;
+    padding: 12px 0; margin-right: 18px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 1.5px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--gold); }
+
+  .tab-body { padding: 18px 20px 18px; background: var(--paper); }
+  .tab-body .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold-deep); margin-bottom: 10px;
+  }
+  .tab-body .eyebrow::before { content: ""; width: 16px; height: 1px; background: var(--gold-deep); }
+  .tab-body h3 {
+    margin: 0 0 6px;
+    font-family: var(--serif); font-weight: 500;
+    font-size: 17px; letter-spacing: -0.012em; color: var(--ink);
+  }
+  .tab-body .desc { margin: 0 0 10px; color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
+
+  .check-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0;
+    border-top: 1px solid var(--rule);
+    font-size: 12px; color: var(--ink-2);
+  }
+  .check-row:first-of-type { border-top: 0; }
+  .check-row .check-label { display: flex; align-items: center; gap: 10px; }
+  .check-row .check-icon {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+  }
+  .check-row .check-icon.ok  { background: rgba(79,122,77,0.12); color: var(--ok); }
+  .check-row .check-icon.err { background: rgba(139,58,46,0.12); color: var(--err); }
+  .check-row .check-status {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .check-row .check-status.ok  { color: var(--ok); }
+  .check-row .check-status.err { color: var(--err); }
+  .button-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .btn { height: 32px; padding: 0 14px; border-radius: 999px; border: 0; font: 500 12px/1 var(--sans); cursor: pointer; }
+  .btn-primary { background: var(--ink); color: var(--paper); }
+  .btn-ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--rule-2); }
+
+  /* Footer */
+  .footer {
+    padding: 10px 20px 14px;
+    background: var(--paper-warm);
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* Per-state */
+  .err-line {
+    margin-top: 8px;
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--err);
+    background: rgba(139,58,46,0.06);
+    border-left: 2px solid var(--err);
+    padding: 8px 10px; border-radius: 4px;
+    line-height: 1.5;
+  }
+
+  /* Section divider */
+  .section-divider {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(246,242,233,0.4);
+    margin: 12px 0 4px;
+  }
+
+  /* Icon helpers */
+  .ic { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+  <h1 class="title">Ortus HubSpot Sync</h1>
+  <p class="subtitle">Popup States · v0.1 Sketch</p>
+
+  <div class="grid">
+
+    <!-- ── 1. NOT ON PROFILE ── -->
+    <div class="frame">
+      <span class="frame-label">1 · Not on a LinkedIn profile</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub">
+                <span class="live-badge" data-state="standby"><span class="dot"></span><span>Standby</span></span>
+              </div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier standby">
+          <div class="eyebrow muted">Open a profile</div>
+          <h1 class="dossier-name">Open a LinkedIn profile to begin.</h1>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 2. SCRAPING ── -->
+    <div class="frame">
+      <span class="frame-label">2 · Reading profile</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Checking</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow">Reading profile</div>
+          <div class="shimmer-headline"></div>
+          <div class="shimmer-line"></div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 3. NOT FOUND (push) ── -->
+    <div class="frame">
+      <span class="frame-label">3 · Not in HubSpot · push</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Connected</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow">Not in HubSpot</div>
+          <h1 class="dossier-name">Antonio <em>Varlese</em></h1>
+          <p class="dossier-role">Founder<span class="sep">·</span>Ortus Club</p>
+          <div class="meta-line"><b>id</b>&nbsp;&nbsp;98750243@linkedinmembership.id</div>
+          <div class="actions">
+            <button class="cta">
+              <span>Push to HubSpot</span>
+              <span class="icon-pod">
+                <svg class="ic" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+              </span>
+            </button>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 4. NOT FOUND with soft-fail warning ── -->
+    <div class="frame">
+      <span class="frame-label">4 · Not in HubSpot · partial scrape</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Connected</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow">Not in HubSpot</div>
+          <h1 class="dossier-name">Mariana <em>De Luca</em></h1>
+          <p class="dossier-role">Independent</p>
+          <div class="meta-line"><b>id</b>&nbsp;&nbsp;48201192@linkedinmembership.id</div>
+          <span class="warning-chip"><span class="dot"></span>Pushing without job title</span>
+          <div class="actions">
+            <button class="cta">
+              <span>Push to HubSpot</span>
+              <span class="icon-pod">
+                <svg class="ic" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+              </span>
+            </button>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 5. FOUND (Update / Skip) ── -->
+    <div class="frame">
+      <span class="frame-label">5 · Already in HubSpot · update?</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Connected</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow ok">Already in HubSpot</div>
+          <h1 class="dossier-name">Antonio <em>Varlese</em></h1>
+          <p class="dossier-role">Founder<span class="sep">·</span>Ortus Club</p>
+          <div class="since-line">Added <a href="#">in HubSpot since Mar 2025</a></div>
+          <div class="actions">
+            <button class="cta">
+              <span>Update</span>
+              <span class="icon-pod">
+                <svg class="ic" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </span>
+            </button>
+            <button class="ghost">Skip</button>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 6. SUCCESS PUSHED ── -->
+    <div class="frame">
+      <span class="frame-label">6 · Pushed ✓</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Connected</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow ok">Pushed</div>
+          <h1 class="dossier-name">Antonio <em>Varlese</em> added to HubSpot.</h1>
+          <div class="since-line"><a href="#">View in HubSpot ›</a></div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 7. SUCCESS UPDATED ── -->
+    <div class="frame">
+      <span class="frame-label">7 · Updated ✓</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Connected</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow ok">Updated</div>
+          <h1 class="dossier-name">Antonio <em>Varlese</em> updated.</h1>
+          <p class="dossier-role">Founder<span class="sep">·</span>Ortus Club</p>
+          <div class="since-line"><a href="#">View in HubSpot ›</a></div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 8. ERROR — token rejected ── -->
+    <div class="frame">
+      <span class="frame-label">8 · Token rejected</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge" data-state="error"><span class="dot"></span><span>Auth error</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow error">HubSpot rejected the token</div>
+          <h1 class="dossier-name standby">Token may have been rotated.</h1>
+          <div class="err-line">401 · Antonio needs to ship an updated build with a fresh token.</div>
+          <div class="actions">
+            <button class="ghost">Retry</button>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 9. ERROR — scrape failed ── -->
+    <div class="frame">
+      <span class="frame-label">9 · Couldn't read profile</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Connected</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow error">Couldn't read the profile</div>
+          <h1 class="dossier-name standby">Couldn't read the LinkedIn ID for this profile.</h1>
+          <div class="err-line">LinkedIn may have updated the page structure. Reload the profile and try again.</div>
+          <div class="actions">
+            <button class="ghost">Retry</button>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+    <!-- ── 10. SETTINGS TAB ── -->
+    <div class="frame">
+      <span class="frame-label">10 · Settings tab</span>
+      <div class="popup-shell"><main class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <span class="ortus-mark">O</span>
+            <div>
+              <div class="brand-name">Ortus · HubSpot Sync</div>
+              <div class="brand-sub"><span class="live-badge"><span class="dot"></span><span>Connected</span></span></div>
+            </div>
+          </div>
+        </header>
+        <section class="dossier" style="padding:18px 22px 16px;">
+          <div class="eyebrow">Profile</div>
+          <h1 class="dossier-name standby">Antonio Varlese · Not in HubSpot.</h1>
+        </section>
+        <nav class="tabs" role="tablist">
+          <button class="tab" aria-selected="false">Profile</button>
+          <button class="tab" aria-selected="true">Settings</button>
+        </nav>
+        <section class="tab-body">
+          <span class="eyebrow">Connection</span>
+          <h3>HubSpot connection</h3>
+          <p class="desc">Token is bundled in this build. No setup needed per operator.</p>
+          <div class="check-row">
+            <div class="check-label"><span class="check-icon ok">✓</span><span>API token valid</span></div>
+            <span class="check-status ok">Connected</span>
+          </div>
+          <div class="check-row">
+            <div class="check-label"><span class="check-icon ok">✓</span><span>Custom property <code style="font-family:var(--mono);font-size:11px;color:var(--ink);">linkedin_membership_id</code></span></div>
+            <span class="check-status ok">Found</span>
+          </div>
+          <div class="check-row">
+            <div class="check-label"><span class="check-icon ok">✓</span><span>Required scopes</span></div>
+            <span class="check-status ok">contacts.read · contacts.write</span>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-primary">Test connection</button>
+            <button class="btn btn-ghost">Reset cache</button>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1</span></footer>
+      </main></div>
+    </div>
+
+  </div>
+</body>
+</html>

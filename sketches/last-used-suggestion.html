@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch · carry last-used tag/status</title>
+<!--
+  SKETCH — variants for "carry last-used tag/status to next profile" (v0.1.48).
+  Uses the REAL popup.html <style> verbatim so it is 1:1 with the extension.
+  Sketch-only additions live in the clearly-marked block at the end of <style>.
+  Scenario in every column:
+    contact already in HubSpot — real stored Status="New", Tag="cold-list"
+    last used (auto-filled)    — Status="In Communication (Active)", Tag="warm-intro"
+    => fields pre-filled, Save lit, "was:" shows the real stored value.
+-->
+<style>
+  :root {
+    color-scheme: light;
+    --ink:        #16140F;
+    --ink-2:      #2C2A24;
+    --ink-soft:   #6B6557;
+    --ink-faint:  #A39B89;
+    --paper:      #FDFBF7;
+    --paper-2:    #F6F2E9;
+    --paper-warm: #F1ECDF;
+    --rule:       #E5DFD0;
+    --rule-2:     #C9C0AC;
+    --gold:       #C99046;
+    --gold-deep:  #9B6A26;
+    --gold-warm:  #F0CE89;
+    --gold-tint:  #F6E8C8;
+    --ok:         #4F7A4D;
+    --err:        #8B3A2E;
+    --serif:      "Newsreader", "Charter", "Iowan Old Style", Georgia, serif;
+    --sans:       "Geist", "InterDisplay", system-ui, sans-serif;
+    --mono:       "Geist Mono", "JetBrains Mono", "SFMono-Regular", monospace;
+    --ease:       cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: 100%;
+    min-width: 300px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-2);
+    background: linear-gradient(180deg, #ECE5D2 0%, #DCD3BC 100%);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Popup chrome (1:1 with QuickConnect) ── */
+  .popup-shell {
+    width: 100%;
+    background: linear-gradient(180deg, #ECE5D2 0%, #DCD3BC 100%);
+    padding: 8px;
+    border-radius: 22px;
+    color: var(--ink-2);
+    font-size: 13px;
+  }
+  .popup {
+    background: var(--paper);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.9) inset,
+      0 0 0 1px rgba(60,40,10,0.04);
+  }
+  .popup::before {
+    content: ""; position: absolute; inset: 0;
+    pointer-events: none; opacity: 0.5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.32  0 0 0 0 0.27  0 0 0 0 0.18  0 0 0 0.07 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+
+  /* Masthead */
+  .masthead {
+    padding: 18px 20px 16px;
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+    position: relative;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .ortus-mark {
+    display: inline-block; width: 28px; height: 28px;
+    border-radius: 6px; flex-shrink: 0;
+  }
+  .brand-name { font-family: var(--serif); font-weight: 500; font-size: 14px; color: var(--ink); }
+  .brand-sub {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint); margin-top: 1px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 7px 2px 5px;
+    border-radius: 999px;
+    background: var(--gold-tint);
+    border: 1px solid var(--gold-deep);
+    color: #6F4715;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    font-weight: 600;
+  }
+  .live-badge[data-state="standby"] { background: transparent; border-color: var(--rule-2); color: var(--ink-soft); }
+  .live-badge[data-state="error"]   { background: rgba(139,58,46,0.08); border-color: var(--err); color: var(--err); }
+  .live-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold-deep); }
+  .live-badge[data-state="standby"] .dot { background: var(--ink-faint); }
+  .live-badge[data-state="error"] .dot   { background: var(--err); }
+
+  /* Dossier */
+  .dossier { padding: 22px 22px 22px; border-bottom: 1px solid var(--rule); }
+  .dossier .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold-deep); margin-bottom: 12px;
+  }
+  .dossier .eyebrow::before { content: ""; width: 16px; height: 1px; background: var(--gold-deep); }
+  .dossier .eyebrow.muted { color: var(--ink-faint); }
+  .dossier .eyebrow.muted::before { background: var(--ink-faint); }
+  .dossier .eyebrow.error { color: var(--err); }
+  .dossier .eyebrow.error::before { background: var(--err); }
+  .dossier .eyebrow.ok { color: var(--ok); }
+  .dossier .eyebrow.ok::before { background: var(--ok); }
+  .dossier-name {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 26px; line-height: 1.05;
+    letter-spacing: -0.018em; color: var(--ink);
+    text-wrap: balance;
+  }
+  .dossier-name em { font-style: italic; font-weight: 400; }
+  .dossier.standby .dossier-name { font-size: 22px; line-height: 1.15; }
+  .dossier-role {
+    margin-top: 4px;
+    font-size: 12px; line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .dossier-role .sep { color: var(--ink-faint); margin: 0 6px; }
+  .meta-line {
+    margin-top: 10px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-faint); letter-spacing: 0.06em;
+    word-break: break-all;
+  }
+  .meta-line b { color: var(--ink-soft); font-weight: 600; }
+  .since-line {
+    margin-top: 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .since-line a {
+    color: var(--gold-deep);
+    border-bottom: 1px solid rgba(155,106,38,0.3);
+    text-decoration: none; padding-bottom: 1px;
+  }
+  .warning-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(201,144,70,0.1);
+    border: 1px solid var(--gold);
+    color: #6F4715;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .warning-chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+
+  /* CTAs */
+  .actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 40px; padding: 4px 4px 4px 18px;
+    border-radius: 999px;
+    background: var(--ink); color: var(--paper); border: 0;
+    font: 500 13px/1 var(--sans); cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.07) inset, 0 12px 28px -10px rgba(20,15,5,0.55);
+  }
+  .cta .label-sub { color: rgba(255,255,255,0.5); margin-left: 4px; font-size: 11px; font-family: var(--mono); letter-spacing: 0.06em; }
+  .cta .icon-pod {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--gold); color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cta.success { background: var(--ok); }
+  .cta.success .icon-pod { background: rgba(255,255,255,0.85); color: var(--ok); }
+  .cta:disabled { opacity: 0.45; cursor: not-allowed; }
+  .ghost {
+    height: 40px; padding: 0 16px;
+    border-radius: 999px;
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--rule-2);
+    font: 500 12px/1 var(--sans); cursor: pointer;
+  }
+  .ghost.danger { color: var(--err); border-color: rgba(139,58,46,0.4); }
+
+  /* ── Manage block (lead status + tag) ── */
+  .manage { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); }
+  .manage[hidden] { display: none; }
+  .manage-head {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 14px;
+  }
+  .manage-head::before { content: ""; width: 16px; height: 1px; background: var(--ink-faint); }
+  .field {
+    display: grid; grid-template-columns: 50px 1fr; align-items: center;
+    gap: 12px; margin-bottom: 10px;
+  }
+  .field > label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .control select, .control input {
+    width: 100%; height: 36px; padding: 0 12px;
+    border-radius: 9px; border: 1px solid var(--rule-2);
+    background: var(--paper-2); color: var(--ink);
+    font: 13px/1 var(--sans); appearance: none; -webkit-appearance: none;
+  }
+  .control select {
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6557' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat; background-position: right 10px center; cursor: pointer;
+  }
+  .control input::placeholder { color: var(--ink-faint); }
+  .manage-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; min-height: 34px; }
+  .save-feedback {
+    margin-right: auto;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-faint); opacity: 0; transition: opacity .25s var(--ease);
+  }
+  .save-feedback.show { opacity: 1; }
+  .save-feedback.ok { color: var(--ok); }
+  .save-feedback.err { color: var(--err); }
+  .save-btn {
+    height: 34px; padding: 0 22px; border-radius: 999px; border: 0;
+    background: var(--ink); color: var(--paper);
+    font: 500 12.5px/1 var(--sans); cursor: pointer;
+    box-shadow: 0 10px 24px -12px rgba(20,15,5,0.5);
+  }
+  .save-btn:disabled { opacity: 0.38; cursor: not-allowed; box-shadow: none; }
+
+  /* Tabs (Settings) */
+  .tabs {
+    display: flex; gap: 0; padding: 0 20px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .tab {
+    background: transparent; border: 0; cursor: pointer;
+    padding: 12px 0; margin-right: 18px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 1.5px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--gold); }
+
+  .tab-body { padding: 18px 20px 18px; background: var(--paper); }
+  .tab-body .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold-deep); margin-bottom: 10px;
+  }
+  .tab-body .eyebrow::before { content: ""; width: 16px; height: 1px; background: var(--gold-deep); }
+  .tab-body h3 {
+    margin: 0 0 6px;
+    font-family: var(--serif); font-weight: 500;
+    font-size: 17px; letter-spacing: -0.012em; color: var(--ink);
+  }
+  .tab-body .desc { margin: 0 0 10px; color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
+
+  .check-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0;
+    border-top: 1px solid var(--rule);
+    font-size: 12px; color: var(--ink-2);
+  }
+  .check-row:first-of-type { border-top: 0; }
+  .check-row .check-label { display: flex; align-items: center; gap: 10px; }
+
+  /* Footer */
+  .footer {
+    padding: 10px 20px 14px;
+    background: var(--paper-warm);
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* Icon helpers */
+  .ic { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Focus */
+  :focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+
+  /* ════════════════════════════════════════════════════════════════════
+     SKETCH-ONLY  —  the three suggestion treatments + sketch page layout.
+     The winning treatment's classes get ported into popup.html.
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* Variant A — top banner + per-field "was:" lines */
+  .sg-banner {
+    display: flex; align-items: center; gap: 7px;
+    margin: -2px 0 14px; padding: 7px 10px;
+    border-radius: 7px;
+    background: var(--gold-tint); border: 1px solid var(--gold-warm);
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.08em; text-transform: uppercase; color: #6F4715;
+  }
+  .sg-banner svg { width: 12px; height: 12px; flex-shrink: 0; stroke: #6F4715; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .sg-revert {
+    margin-left: auto; background: 0; border: 0; cursor: pointer;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--gold-deep); border-bottom: 1px solid rgba(155,106,38,0.35); padding: 0 0 1px;
+  }
+  .was-line {
+    grid-column: 2; margin-top: 4px;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .was-line b { color: var(--ink-soft); font-weight: 600; }
+
+  /* Variant B — highlighted suggested fields + "was" chip under label */
+  .field.suggested .control select,
+  .field.suggested .control input {
+    border-color: var(--gold);
+    background: var(--gold-tint);
+    box-shadow: inset 3px 0 0 var(--gold-deep);
+  }
+  .was-chip {
+    display: inline-block; margin-top: 5px;
+    font-family: var(--mono); font-size: 8px;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint);
+    background: var(--paper-2); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .sg-revert-inline {
+    background: 0; border: 0; cursor: pointer; margin-right: auto;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--gold-deep); border-bottom: 1px solid rgba(155,106,38,0.35); padding: 0 0 1px;
+  }
+
+  /* Variant C — one consolidated banner just above the actions */
+  .sg-summary {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 14px; padding: 8px 11px;
+    border-radius: 7px; border: 1px dashed var(--gold);
+    background: rgba(201,144,70,0.07);
+  }
+  .sg-summary svg { width: 13px; height: 13px; flex-shrink: 0; stroke: var(--gold-deep); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .sg-summary .sg-txt {
+    font-family: var(--mono); font-size: 9px; line-height: 1.5;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .sg-summary .sg-txt b { color: var(--ink-2); font-weight: 600; }
+  .sg-summary .sg-revert { margin-left: auto; white-space: nowrap; }
+
+  /* Sketch page scaffolding (NOT part of the extension) */
+  .sk-page { padding: 32px 28px 64px; }
+  .sk-title { font-family: var(--serif); font-size: 24px; color: var(--ink); margin: 0 0 4px; }
+  .sk-sub { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; color: var(--ink-soft); margin: 0 0 28px; max-width: 720px; line-height: 1.6; }
+  .sk-row { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; }
+  .sk-col { width: 348px; }
+  .sk-cap { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-deep); margin: 0 0 4px; font-weight: 600; }
+  .sk-note { font-family: var(--sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft); margin: 0 0 12px; min-height: 48px; }
+  .sk-settings { margin-top: 40px; }
+  .sk-toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-top: 1px solid var(--rule); gap: 16px;
+  }
+  .sk-toggle-row .lbl { font-size: 12.5px; color: var(--ink-2); }
+  .sk-toggle-row .lbl small { display: block; color: var(--ink-faint); font-size: 11px; margin-top: 2px; }
+  .switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider { position: absolute; inset: 0; border-radius: 999px; background: var(--rule-2); transition: .2s var(--ease); }
+  .switch .slider::before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; border-radius: 50%; background: var(--paper); transition: .2s var(--ease); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .switch input:checked + .slider { background: var(--gold-deep); }
+  .switch input:checked + .slider::before { transform: translateX(16px); }
+</style>
+</head>
+<body>
+<div class="sk-page">
+  <h1 class="sk-title">Carry last-used tag/status → next profile</h1>
+  <p class="sk-sub">
+    v0.1.48 · 1:1 with the real popup. Scenario per column: contact already in HubSpot
+    (real stored <b>Status&nbsp;=&nbsp;New</b>, <b>Tag&nbsp;=&nbsp;cold-list</b>); last-used
+    <b>In&nbsp;Communication&nbsp;(Active)</b> + <b>warm-intro</b> auto-filled, Save lit.
+    Click <b>Revert</b> in any column to drop the suggestion back to the stored value.
+  </p>
+
+  <div class="sk-row">
+
+    <!-- ───────────────────────── Variant A ───────────────────────── -->
+    <div class="sk-col">
+      <p class="sk-cap">A · Banner + per-field “was:”</p>
+      <p class="sk-note">A small banner labels the whole block as a suggestion; each field carries a quiet “was:” line so the real stored value is always visible.</p>
+      <main class="popup-shell" id="colA"><div class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <svg class="ortus-mark" viewBox="0 0 128 128" aria-hidden="true"><rect width="128" height="128" rx="22" fill="#16140F"/><g stroke="#FDFBF7" stroke-width="4" fill="none" stroke-linejoin="miter" stroke-linecap="square"><path d="M64,42 L46,76 L82,76 Z"/><line x1="64" y1="42" x2="64" y2="76"/><line x1="55" y1="59" x2="73" y2="59"/><path d="M30,76 L98,76 L84,94 L44,94 Z"/></g></svg>
+            <div><div class="brand-name">Ortus · HubSpot Sync</div><div class="brand-sub"><span class="live-badge"><span class="dot"></span>Connected</span></div></div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow ok">Already in HubSpot</div>
+          <h1 class="dossier-name">Marcus <em>Bell</em></h1>
+          <p class="dossier-role">Head of Partnerships<span class="sep">·</span>Lyra Capital</p>
+          <div class="since-line"><a href="#">in HubSpot since Mar 2026</a></div>
+          <div class="manage">
+            <div class="manage-head">Manage</div>
+            <div class="sg-banner">
+              <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              Pre-filled from last used
+              <button class="sg-revert" data-col="colA">Revert</button>
+            </div>
+            <div class="field">
+              <label>Status</label>
+              <div class="control"><select data-role="status"><option>New</option><option selected>In Communication (Active)</option><option>Accepted</option><option>Provisional</option></select></div>
+              <div class="was-line" data-role="was-status">was <b>New</b></div>
+            </div>
+            <div class="field">
+              <label>Tag</label>
+              <div class="control"><input type="text" data-role="tag" value="warm-intro"></div>
+              <div class="was-line" data-role="was-tag">was <b>cold-list</b></div>
+            </div>
+            <div class="manage-actions">
+              <span class="save-feedback">&nbsp;</span>
+              <button class="save-btn" data-role="save">Save</button>
+            </div>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1.48</span></footer>
+      </div></main>
+    </div>
+
+    <!-- ───────────────────────── Variant B ───────────────────────── -->
+    <div class="sk-col">
+      <p class="sk-cap">B · Highlighted fields + “was” chip</p>
+      <p class="sk-note">No banner. Pre-filled fields get a gold edge + tint so they read as unsaved; a tiny chip under each shows the stored value. One Revert by the Save button.</p>
+      <main class="popup-shell" id="colB"><div class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <svg class="ortus-mark" viewBox="0 0 128 128" aria-hidden="true"><rect width="128" height="128" rx="22" fill="#16140F"/><g stroke="#FDFBF7" stroke-width="4" fill="none" stroke-linejoin="miter" stroke-linecap="square"><path d="M64,42 L46,76 L82,76 Z"/><line x1="64" y1="42" x2="64" y2="76"/><line x1="55" y1="59" x2="73" y2="59"/><path d="M30,76 L98,76 L84,94 L44,94 Z"/></g></svg>
+            <div><div class="brand-name">Ortus · HubSpot Sync</div><div class="brand-sub"><span class="live-badge"><span class="dot"></span>Connected</span></div></div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow ok">Already in HubSpot</div>
+          <h1 class="dossier-name">Marcus <em>Bell</em></h1>
+          <p class="dossier-role">Head of Partnerships<span class="sep">·</span>Lyra Capital</p>
+          <div class="since-line"><a href="#">in HubSpot since Mar 2026</a></div>
+          <div class="manage">
+            <div class="manage-head">Manage</div>
+            <div class="field suggested">
+              <label>Status</label>
+              <div class="control"><select data-role="status"><option>New</option><option selected>In Communication (Active)</option><option>Accepted</option><option>Provisional</option></select></div>
+              <span class="was-chip" data-role="was-status">was New</span>
+            </div>
+            <div class="field suggested">
+              <label>Tag</label>
+              <div class="control"><input type="text" data-role="tag" value="warm-intro"></div>
+              <span class="was-chip" data-role="was-tag">was cold-list</span>
+            </div>
+            <div class="manage-actions">
+              <button class="sg-revert-inline" data-col="colB">Revert to current</button>
+              <button class="save-btn" data-role="save">Save</button>
+            </div>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1.48</span></footer>
+      </div></main>
+    </div>
+
+    <!-- ───────────────────────── Variant C ───────────────────────── -->
+    <div class="sk-col">
+      <p class="sk-cap">C · One consolidated banner</p>
+      <p class="sk-note">Fields stay clean; a single dashed banner above Save summarises both stored values. Lowest visual noise — the stored values sit in one place, not per field.</p>
+      <main class="popup-shell" id="colC"><div class="popup">
+        <header class="masthead">
+          <div class="brand">
+            <svg class="ortus-mark" viewBox="0 0 128 128" aria-hidden="true"><rect width="128" height="128" rx="22" fill="#16140F"/><g stroke="#FDFBF7" stroke-width="4" fill="none" stroke-linejoin="miter" stroke-linecap="square"><path d="M64,42 L46,76 L82,76 Z"/><line x1="64" y1="42" x2="64" y2="76"/><line x1="55" y1="59" x2="73" y2="59"/><path d="M30,76 L98,76 L84,94 L44,94 Z"/></g></svg>
+            <div><div class="brand-name">Ortus · HubSpot Sync</div><div class="brand-sub"><span class="live-badge"><span class="dot"></span>Connected</span></div></div>
+          </div>
+        </header>
+        <section class="dossier">
+          <div class="eyebrow ok">Already in HubSpot</div>
+          <h1 class="dossier-name">Marcus <em>Bell</em></h1>
+          <p class="dossier-role">Head of Partnerships<span class="sep">·</span>Lyra Capital</p>
+          <div class="since-line"><a href="#">in HubSpot since Mar 2026</a></div>
+          <div class="manage">
+            <div class="manage-head">Manage</div>
+            <div class="field">
+              <label>Status</label>
+              <div class="control"><select data-role="status"><option>New</option><option selected>In Communication (Active)</option><option>Accepted</option><option>Provisional</option></select></div>
+            </div>
+            <div class="field">
+              <label>Tag</label>
+              <div class="control"><input type="text" data-role="tag" value="warm-intro"></div>
+            </div>
+            <div class="sg-summary" data-role="summary">
+              <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              <span class="sg-txt">Pre-filled from last used · was <b>New</b> / <b>cold-list</b></span>
+              <button class="sg-revert" data-col="colC">Revert</button>
+            </div>
+            <div class="manage-actions">
+              <span class="save-feedback">&nbsp;</span>
+              <button class="save-btn" data-role="save">Save</button>
+            </div>
+          </div>
+        </section>
+        <footer class="footer"><span>Ortus Club · 2026</span><span>v0.1.48</span></footer>
+      </div></main>
+    </div>
+
+  </div>
+
+  <!-- Settings toggle (identical in all variants) -->
+  <div class="sk-settings sk-col">
+    <p class="sk-cap">Settings · the on/off toggle (default ON)</p>
+    <main class="popup-shell"><div class="popup">
+      <section class="tab-body">
+        <span class="eyebrow">Workflow</span>
+        <h3>Carry last-used tag/status</h3>
+        <p class="desc">When you open a new profile, pre-fill Status &amp; Tag with the values from your last save. You still press Save to apply.</p>
+        <div class="sk-toggle-row">
+          <span class="lbl">Carry last-used to new profiles<small>Saves nothing automatically — only pre-fills the fields.</small></span>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+      </section>
+    </div></main>
+  </div>
+
+</div>
+
+<script>
+  // Sketch-only: make "Revert" feel real — drop the suggestion back to the
+  // stored value and dim Save, so each treatment can be felt, not just seen.
+  const STORED = { status: "New", tag: "cold-list" };
+  document.querySelectorAll(".sg-revert, .sg-revert-inline").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const col = document.getElementById(btn.dataset.col);
+      const sel = col.querySelector('[data-role="status"]');
+      const tag = col.querySelector('[data-role="tag"]');
+      [...sel.options].forEach(o => o.selected = (o.value || o.text) === STORED.status);
+      tag.value = STORED.tag;
+      col.querySelectorAll(".field.suggested").forEach(f => f.classList.remove("suggested"));
+      const summary = col.querySelector('[data-role="summary"]'); if (summary) summary.style.display = "none";
+      const banner = col.querySelector(".sg-banner"); if (banner) banner.style.display = "none";
+      col.querySelectorAll(".was-line, .was-chip").forEach(e => e.style.display = "none");
+      const save = col.querySelector('[data-role="save"]'); save.disabled = true;
+    });
+  });
+</script>
+</body>
+</html>

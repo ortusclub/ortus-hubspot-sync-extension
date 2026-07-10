@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ortus · HubSpot Sync — Manage fields mockup</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink:        #16140F;
+    --ink-2:      #2C2A24;
+    --ink-soft:   #6B6557;
+    --ink-faint:  #A39B89;
+    --paper:      #FDFBF7;
+    --paper-2:    #F6F2E9;
+    --paper-warm: #F1ECDF;
+    --rule:       #E5DFD0;
+    --rule-2:     #C9C0AC;
+    --gold:       #C99046;
+    --gold-deep:  #9B6A26;
+    --gold-warm:  #F0CE89;
+    --gold-tint:  #F6E8C8;
+    --ok:         #4F7A4D;
+    --err:        #8B3A2E;
+    --serif:      "Newsreader", "Charter", "Iowan Old Style", Georgia, serif;
+    --sans:       "Geist", "InterDisplay", system-ui, sans-serif;
+    --mono:       "Geist Mono", "JetBrains Mono", "SFMono-Regular", monospace;
+    --ease:       cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-2);
+    background: #B9AE92;
+    -webkit-font-smoothing: antialiased;
+    display: flex; justify-content: center; align-items: flex-start;
+    padding: 40px 0 80px;
+    min-height: 100vh;
+  }
+
+  .popup-shell {
+    width: 390px;
+    background: linear-gradient(180deg, #ECE5D2 0%, #DCD3BC 100%);
+    padding: 8px;
+    border-radius: 22px;
+    color: var(--ink-2);
+    font-size: 13px;
+    box-shadow: 0 30px 70px -25px rgba(20,15,5,0.6);
+  }
+  .popup {
+    background: var(--paper);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.9) inset,
+      0 0 0 1px rgba(60,40,10,0.04);
+  }
+  .popup::before {
+    content: ""; position: absolute; inset: 0;
+    pointer-events: none; opacity: 0.5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.32  0 0 0 0 0.27  0 0 0 0 0.18  0 0 0 0.07 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+
+  /* Masthead */
+  .masthead {
+    padding: 18px 20px 16px;
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--rule);
+    background: linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+    position: relative;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .ortus-mark { display: inline-block; width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; }
+  .brand-name { font-family: var(--serif); font-weight: 500; font-size: 14px; color: var(--ink); }
+  .brand-sub {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint); margin-top: 1px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 7px 2px 5px; border-radius: 999px;
+    background: var(--gold-tint); border: 1px solid var(--gold-deep);
+    color: #6F4715; font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+  }
+  .live-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold-deep); }
+
+  /* Dossier */
+  .dossier { padding: 22px 22px 22px; border-bottom: 1px solid var(--rule); }
+  .dossier .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold-deep); margin-bottom: 12px;
+  }
+  .dossier .eyebrow::before { content: ""; width: 16px; height: 1px; background: var(--gold-deep); }
+  .dossier .eyebrow.ok { color: var(--ok); }
+  .dossier .eyebrow.ok::before { background: var(--ok); }
+  .dossier-name {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 26px; line-height: 1.05;
+    letter-spacing: -0.018em; color: var(--ink); text-wrap: balance;
+  }
+  .dossier-name em { font-style: italic; font-weight: 400; }
+  .dossier-role { margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--ink-soft); }
+  .dossier-role .sep { color: var(--ink-faint); margin: 0 6px; }
+  .since-line {
+    margin-top: 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .since-line a {
+    color: var(--gold-deep); border-bottom: 1px solid rgba(155,106,38,0.3);
+    text-decoration: none; padding-bottom: 1px;
+  }
+
+  /* ── NEW: Manage block ── */
+  .manage { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); }
+  .manage-head {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 14px;
+  }
+  .manage-head::before { content: ""; width: 16px; height: 1px; background: var(--ink-faint); }
+  .field {
+    display: grid; grid-template-columns: 50px 1fr; align-items: center;
+    gap: 12px; margin-bottom: 10px;
+  }
+  .field > label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft);
+  }
+  .control select, .control input {
+    width: 100%; height: 36px; padding: 0 12px;
+    border-radius: 9px; border: 1px solid var(--rule-2);
+    background: var(--paper-2); color: var(--ink);
+    font: 13px/1 var(--sans); appearance: none; -webkit-appearance: none;
+  }
+  .control select {
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6557' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat; background-position: right 10px center;
+    cursor: pointer;
+  }
+  .control input::placeholder { color: var(--ink-faint); }
+  .manage-actions {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 14px; min-height: 34px;
+  }
+  .save-feedback {
+    margin-right: auto;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-faint); opacity: 0; transition: opacity .25s var(--ease);
+  }
+  .save-feedback.show { opacity: 1; }
+  .save-feedback.ok { color: var(--ok); }
+  .save-feedback.err { color: var(--err); }
+  .save-btn {
+    height: 34px; padding: 0 22px; border-radius: 999px; border: 0;
+    background: var(--ink); color: var(--paper);
+    font: 500 12.5px/1 var(--sans); cursor: pointer;
+    box-shadow: 0 10px 24px -12px rgba(20,15,5,0.5);
+  }
+  .save-btn:disabled { opacity: 0.38; cursor: not-allowed; box-shadow: none; }
+
+  /* existing CTAs */
+  .actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 40px; padding: 4px 4px 4px 18px; border-radius: 999px;
+    background: var(--ink); color: var(--paper); border: 0;
+    font: 500 13px/1 var(--sans); cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.07) inset, 0 12px 28px -10px rgba(20,15,5,0.55);
+  }
+  .cta .icon-pod {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--gold); color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ghost {
+    height: 40px; padding: 0 16px; border-radius: 999px;
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--rule-2);
+    font: 500 12px/1 var(--sans); cursor: pointer;
+  }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; padding: 0 20px; border-bottom: 1px solid var(--rule); background: var(--paper); }
+  .tab {
+    background: transparent; border: 0; cursor: pointer;
+    padding: 12px 0; margin-right: 18px;
+    font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint); border-bottom: 1.5px solid transparent; margin-bottom: -1px;
+  }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--gold); }
+
+  /* Footer */
+  .footer {
+    padding: 10px 20px 14px; background: var(--paper-warm);
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint);
+  }
+
+  :focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+
+  .caption {
+    width: 390px; margin: 18px auto 0; text-align: center;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #4a4334;
+  }
+</style>
+</head>
+<body>
+  <div>
+  <main class="popup-shell"><div class="popup">
+
+    <header class="masthead">
+      <div class="brand">
+        <svg class="ortus-mark" viewBox="0 0 128 128" aria-hidden="true">
+          <rect x="0" y="0" width="128" height="128" rx="22" fill="#16140F"/>
+          <g stroke="#FDFBF7" stroke-width="4" fill="none" stroke-linejoin="miter" stroke-linecap="square">
+            <path d="M64,42 L46,76 L82,76 Z"/>
+            <line x1="64" y1="42" x2="64" y2="76"/>
+            <line x1="55" y1="59" x2="73" y2="59"/>
+            <path d="M30,76 L98,76 L84,94 L44,94 Z"/>
+          </g>
+        </svg>
+        <div>
+          <div class="brand-name">Ortus · HubSpot Sync</div>
+          <div class="brand-sub">
+            <span class="live-badge" data-state="default" role="status">
+              <span class="dot"></span><span>Connected</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="dossier">
+      <div class="eyebrow ok">Already in HubSpot</div>
+      <h1 class="dossier-name">Elena <em>Marchetti</em></h1>
+      <p class="dossier-role">Head of Partnerships<span class="sep">·</span>Meridian Group</p>
+      <div class="since-line"><a href="#">Added in HubSpot since Mar 2025</a></div>
+
+      <!-- NEW Manage block -->
+      <div class="manage">
+        <div class="manage-head">Manage</div>
+
+        <div class="field">
+          <label for="mStatus">Status</label>
+          <div class="control">
+            <select id="mStatus">
+              <option>Accepted</option>
+              <option>Waiting List</option>
+              <option>Provisional</option>
+              <option selected>In Communication (Active)</option>
+              <option>In Communication (Passive)</option>
+              <option>In Communication (Passive Platinum)</option>
+              <option>In Communication (Passive Platinum Plus)</option>
+              <option>In Communication (Passive Gold)</option>
+              <option>In Communication (Passive Silver Plus)</option>
+              <option>In Communication (Passive Silver)</option>
+              <option>Dropped</option>
+              <option>Uninvited</option>
+              <option>Unqualified</option>
+              <option>Declined</option>
+              <option>Unsubscribed</option>
+              <option>New</option>
+              <option>Push</option>
+              <option>Traction</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="mTag">Tag</label>
+          <div class="control">
+            <input id="mTag" type="text" value="warm-intro" placeholder="e.g. warm-intro" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="manage-actions">
+          <span id="mFeedback" class="save-feedback"></span>
+          <button id="mSave" class="save-btn" disabled>Save</button>
+        </div>
+      </div>
+
+      <!-- existing CTAs, unchanged -->
+      <div class="actions">
+        <button class="cta"><span>Update</span>
+          <span class="icon-pod">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </button>
+        <button class="ghost">Skip</button>
+      </div>
+    </section>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true">Profile</button>
+      <button class="tab" role="tab" aria-selected="false">Settings</button>
+    </nav>
+
+    <footer class="footer">
+      <span>Ortus Club · 2026</span>
+      <span>v0.1.35</span>
+    </footer>
+
+  </div></main>
+  <div class="caption">Mockup · Manage block in the “found” state · Save disabled until a field changes</div>
+  </div>
+
+<script>
+  var statusEl = document.getElementById('mStatus');
+  var tagEl = document.getElementById('mTag');
+  var saveBtn = document.getElementById('mSave');
+  var fb = document.getElementById('mFeedback');
+  var loaded = { status: statusEl.value, tag: tagEl.value };
+
+  function dirty() { return statusEl.value !== loaded.status || tagEl.value !== loaded.tag; }
+  function refresh() { saveBtn.disabled = !dirty(); }
+  function clearFb() { fb.className = 'save-feedback'; fb.textContent = ''; }
+
+  statusEl.addEventListener('change', function () { clearFb(); refresh(); });
+  tagEl.addEventListener('input', function () { clearFb(); refresh(); });
+
+  saveBtn.addEventListener('click', function () {
+    saveBtn.disabled = true;
+    fb.textContent = 'Saving…'; fb.className = 'save-feedback show';
+    setTimeout(function () {
+      loaded = { status: statusEl.value, tag: tagEl.value };
+      fb.textContent = '✓ Saved'; fb.className = 'save-feedback show ok';
+      refresh();
+    }, 450);
+  });
+
+  refresh();
+</script>
+</body>
+</html>

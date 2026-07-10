@@ -1,0 +1,15 @@
+node_modules/
+coverage/
+.DS_Store
+build/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+*.zip
+*.crx
+*.pem
+.superpowers/
+.claude/

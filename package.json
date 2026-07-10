@@ -1,0 +1,15 @@
+{
+  "name": "ortus-hs-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ortus Club HubSpot Sync — LinkedIn profile lookup and push.",
+  "scripts": {
+    "check:secrets": "node tools/check-secrets.js",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}
