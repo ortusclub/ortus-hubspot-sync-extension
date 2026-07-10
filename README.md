@@ -15,6 +15,9 @@ Lookup or push the LinkedIn profile you're viewing into Ortus Club's HubSpot.
 2. Click **Load unpacked** → select this folder.
 3. Pin the extension to the toolbar.
 
+Operators never enter a HubSpot token or any other credential. The extension
+connects to the managed Ortus proxy, which holds the HubSpot token in Cloudflare.
+
 ## Ship a new build
 
 ```bash
@@ -51,7 +54,9 @@ After installing:
 
 ### Test the note and email-repair changes
 
-The updated proxy must be deployed before these two operations can reach HubSpot:
+The updated proxy must be deployed by a maintainer before these two operations
+can reach HubSpot. Deploying code preserves the existing Cloudflare secrets and
+does not require operators to enter anything:
 
 ```bash
 cd proxy
@@ -94,6 +99,7 @@ The source repository is `ortusclub/ortus-hubspot-sync-extension`. HubSpot's
 private-app token is stored only as the Cloudflare Worker secret `HUBSPOT_TOKEN`.
 The repository ignores private keys, `.dev.vars`, `.env` files, Wrangler state,
 and packaged ZIP/CRX builds. GitHub Actions runs the secret scan before tests.
+Only maintainers configure or rotate the Worker secret; extension users never do.
 
 ## Architecture
 
