@@ -21,5 +21,8 @@ describe("proxy endpoint allowlist", () => {
     expect(config).toContain(
       '"ALLOWED_ORIGIN": "chrome-extension://fpkljmkadlmoblfafkohhgdcahjcdhfd"'
     );
+    expect(worker).toContain(
+      "env.ALLOWED_ORIGIN && requestOrigin && requestOrigin !== env.ALLOWED_ORIGIN"
+    );
   });
 });

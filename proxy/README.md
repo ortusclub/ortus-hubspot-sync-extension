@@ -39,6 +39,7 @@ npx wrangler secret put PROXY_KEY
 Secret values are entered only at Wrangler's private prompt. Do not place them
 in source files, command arguments, documentation, `.env` files, or GitHub.
 
-The non-secret `ALLOWED_ORIGIN` setting in `wrangler.jsonc` restricts browser
-requests to the signed Ortus extension ID. The endpoint allowlist in `worker.js`
-further limits which HubSpot operations the proxy can perform.
+When a request supplies an Origin header, the non-secret `ALLOWED_ORIGIN` setting
+restricts it to the signed Ortus extension ID. Chrome service-worker requests may
+omit that header, so the shared-key gate remains mandatory. The endpoint allowlist
+in `worker.js` further limits which HubSpot operations the proxy can perform.

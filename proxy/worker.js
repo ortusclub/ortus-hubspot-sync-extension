@@ -41,7 +41,8 @@ export default {
     }
 
     // Gate 2 — optional origin lock to the extension's id.
-    if (env.ALLOWED_ORIGIN && request.headers.get("Origin") !== env.ALLOWED_ORIGIN) {
+    const requestOrigin = request.headers.get("Origin");
+    if (env.ALLOWED_ORIGIN && requestOrigin && requestOrigin !== env.ALLOWED_ORIGIN) {
       return json({ error: "forbidden_origin" }, 403, request, env);
     }
 
