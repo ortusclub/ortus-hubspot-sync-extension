@@ -120,13 +120,15 @@
       return { contactId: r.body.id };
     }
 
-    async function addSecondaryEmail(contactId, email) {
+    async function addAdditionalEmail(contactId, email) {
+      // HubSpot's legacy endpoint writes to the standard
+      // hs_additional_emails contact property shown in the CRM UI.
       const r = await hsFetch(
         `/contacts/v1/secondary-email/${encodeURIComponent(contactId)}/email/${encodeURIComponent(email)}`,
         { method: "PUT" }
       );
       if (!r.ok) return mapHttpError(r);
-      return { contactId, email, action: "secondary_added" };
+      return { contactId, email, action: "additional_added" };
     }
 
     async function ensureMembershipEmail(contactId, memberId, existingProperties) {
@@ -135,14 +137,18 @@
       const desired = syntheticEmailFromMemberId(memberId);
       const desiredNormalized = desired.toLowerCase();
       const primary = String(existingProperties.email || "").trim();
-      const allKnownEmails = [primary.toLowerCase(), ...emailValues(existingProperties.hs_additional_emails)]
+      const additionalEmails = emailValues(existingProperties.hs_additional_emails);
+      const allKnownEmails = [primary.toLowerCase(), ...additionalEmails]
         .filter(Boolean);
 
       if (allKnownEmails.includes(desiredNormalized)) {
         return { contactId, email: desired, action: "already_present" };
       }
 
-      if (primary) return addSecondaryEmail(contactId, desired);
+      // Any existing email means the LinkedIn address must stay additional.
+      // This also protects contacts whose primary email is blank but that
+      // already have one or more additional addresses.
+      if (primary || additionalEmails.length) return addAdditionalEmail(contactId, desired);
 
       const r = await updateProperties(contactId, { email: desired });
       if (r.error) return r;

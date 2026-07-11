@@ -169,7 +169,7 @@ describe("ensureMembershipEmail", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test("adds the membership email as secondary without changing a real primary", async () => {
+  test("adds the membership email as an additional address without changing a real primary", async () => {
     const calls = mockFetch([{ status: 200, body: {
       vid: 5555,
       secondaryEmails: ["98750243@linkedinmembership.id"],
@@ -180,13 +180,31 @@ describe("ensureMembershipEmail", () => {
       hs_additional_emails: "",
     });
 
-    expect(result.action).toBe("secondary_added");
+    expect(result.action).toBe("additional_added");
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe(
       "https://ortus-hs-proxy.ortus-eb6.workers.dev/contacts/v1/secondary-email/5555/email/98750243%40linkedinmembership.id"
     );
     expect(calls[0].opts.method).toBe("PUT");
     expect(calls[0].opts.body).toBeUndefined();
+  });
+
+  test("keeps the membership email additional when another email already exists", async () => {
+    const calls = mockFetch([{ status: 200, body: {
+      vid: 5555,
+      secondaryEmails: ["samuel@example.com", "98750243@linkedinmembership.id"],
+    } }]);
+    const client = createClient({ key: "pat-test" });
+    const result = await client.ensureMembershipEmail("5555", "98750243", {
+      email: "",
+      hs_additional_emails: "samuel@example.com",
+    });
+
+    expect(result.action).toBe("additional_added");
+    expect(calls[0].opts.method).toBe("PUT");
+    expect(calls[0].url).toBe(
+      "https://ortus-hs-proxy.ortus-eb6.workers.dev/contacts/v1/secondary-email/5555/email/98750243%40linkedinmembership.id"
+    );
   });
 
   test("uses the membership email as primary only when no primary exists", async () => {
