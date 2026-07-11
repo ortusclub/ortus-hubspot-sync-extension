@@ -14,6 +14,7 @@ describe("packaged extension update integration", () => {
   test("settings exposes a user-triggered update control", () => {
     expect(html).toContain('id="checkUpdateBtn"');
     expect(html).toContain('id="updateFeedback"');
+    expect(html).toContain("Check with Chrome");
     expect(popup).toContain("chrome.runtime.requestUpdateCheck()");
     expect(popup).toContain("chrome.runtime.onUpdateAvailable.addListener");
     expect(popup).toContain("chrome.runtime.reload()");

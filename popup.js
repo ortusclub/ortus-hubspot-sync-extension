@@ -794,7 +794,7 @@ async function checkForExtensionUpdate() {
 
     installUpdateWhenReady = false;
     if (result.status === "throttled") {
-      setUpdateFeedback("Try again later");
+      setUpdateFeedback("Chrome will check automatically", "ok");
     } else {
       setUpdateFeedback("You have the latest version", "ok");
     }

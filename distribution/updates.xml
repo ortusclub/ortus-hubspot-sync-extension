@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
   <app appid='fpkljmkadlmoblfafkohhgdcahjcdhfd'>
-    <updatecheck codebase='https://ortusclub.github.io/ortus-hs-ext/ortus-ext.crx' version='0.1.53' />
+    <updatecheck codebase='https://ortusclub.github.io/ortus-hs-ext/ortus-ext.crx' version='0.1.54' />
   </app>
 </gupdate>
