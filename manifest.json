@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ortus Club · HubSpot Sync New",
-  "version": "0.1.52",
+  "version": "0.1.53",
   "description": "Lookup or push the LinkedIn profile you're viewing into Ortus Club's HubSpot.",
   "update_url": "https://ortusclub.github.io/ortus-hs-ext/updates.xml",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyVXktUsiI7xCJlVfwL0QbZZJaqeJX+8/BN9o5loG2QiHheM+T0GtcPytb/k94v7DHOoIFcF4OcedbJsWDWqQg+d/34Ogsz/wfRoBlWpJ1epnv/D7MX8SU+nVZSuo/daiRe/EX91oOFkg5jdUvUVtuBvvH1aSnyrxYfnE9bDBiiZ+R9lhQEBYxMWPraBIGFlhBE4OHdCY85CBMsmOcQ2v4f1XxvAj3RMfJJLeChoSxlg2ly3Q+LY2XIRJstF43LNkk5qoRXS/wJLeonULU+MsdU7SfMQeOh9+c6PIyRL5exUK3e8T0JYcv31uM2OtuZZtQw/+VO6hN25CFPqybH4R9QIDAQAB",
