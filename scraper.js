@@ -101,12 +101,6 @@
     let linkedinBio = "";
     const slugMatch = /"publicIdentifier":"([^"]+)"/.exec(html);
     if (slugMatch) linkedinBio = `https://www.linkedin.com/in/${slugMatch[1]}`;
-    if (!linkedinBio) {
-      const profileLink = doc.querySelector('a[href*="linkedin.com/in/"], a[href^="/in/"]');
-      const href = profileLink && (profileLink.getAttribute("href") || "");
-      const hrefSlug = /\/in\/([^/?#]+)/i.exec(href);
-      if (hrefSlug) linkedinBio = `https://www.linkedin.com/in/${hrefSlug[1]}`;
-    }
 
     if (!memberId && !profileUrn) return { error: "no_member_id" };
     if (!firstName) return { error: "no_name" };
@@ -173,16 +167,6 @@
     let match;
     while ((match = urnRe.exec(html))) ids.add(match[1]);
     if (ids.size === 1) return Array.from(ids)[0];
-
-    // VANILLA Sales Nav sometimes serialises the target URN behind an
-    // obfuscated key (or inside an escaped payload), so objectUrn is absent
-    // even though exactly one urn:li:member value is present. On a direct lead
-    // page a unique numeric member URN is the target; refuse this fallback when
-    // multiple identities are present rather than guessing.
-    const allUrnIds = new Set();
-    const anyUrnRe = /urn(?::|%3A)li(?::|%3A)member(?::|%3A)(\d+)/gi;
-    while ((match = anyUrnRe.exec(html))) allUrnIds.add(match[1]);
-    if (allUrnIds.size === 1) return Array.from(allUrnIds)[0];
 
     const memberIds = new Set();
     const idRe = /"memberId"\s*:\s*"?(\d+)"?/gi;

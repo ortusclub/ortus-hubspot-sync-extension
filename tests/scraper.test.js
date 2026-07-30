@@ -101,7 +101,7 @@ describe("scrapeProfile - Sales Navigator", () => {
     expect(result.profileUrn).toBe("ACoAADGWWZEBtNXlq8QUS_hrS2Rr");
   });
 
-  test("reads the sole member URN when VANILLA obfuscates the objectUrn key", () => {
+  test("does not trust a sole member URN behind an uncorrelated obfuscated key", () => {
     document.documentElement.innerHTML = `
       <head><title>Surya Midha | Sales Navigator</title></head>
       <body>
@@ -114,7 +114,8 @@ describe("scrapeProfile - Sales Navigator", () => {
       document,
       "https://www.linkedin.com/sales/lead/ACoAADPjaQgBhOUPsMBoDtn,NAME_SEARCH/"
     );
-    expect(result.memberId).toBe("7654321");
+    expect(result.memberId).toBeNull();
+    expect(result.profileUrn).toBe("ACoAADPjaQgBhOUPsMBoDtn");
   });
 
   test("refuses the generic VANILLA URN fallback when identities are ambiguous", () => {
@@ -130,6 +131,21 @@ describe("scrapeProfile - Sales Navigator", () => {
     );
     expect(result.memberId).toBeNull();
     expect(result.profileUrn).toBe("TARGETKEY");
+  });
+
+  test("does not use an unrelated /in/ link as the Sales Nav target profile", () => {
+    document.documentElement.innerHTML = `
+      <head><title>Surya Midha | Sales Navigator</title></head>
+      <body>
+        <main><h1>Sales Navigator Lead Page</h1></main>
+        <nav><a href="https://www.linkedin.com/in/antonio-varlese/">Viewer</a></nav>
+      </body>`;
+    const result = scrapeProfile(
+      document,
+      "https://www.linkedin.com/sales/lead/SURYATARGET,NAME_SEARCH/"
+    );
+    expect(result.linkedinBio).toBe("");
+    expect(result.profileUrn).toBe("SURYATARGET");
   });
 });
 
