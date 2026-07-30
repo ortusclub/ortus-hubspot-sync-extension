@@ -100,6 +100,37 @@ describe("scrapeProfile - Sales Navigator", () => {
     expect(result.memberId).toBeNull();
     expect(result.profileUrn).toBe("ACoAADGWWZEBtNXlq8QUS_hrS2Rr");
   });
+
+  test("reads the sole member URN when VANILLA obfuscates the objectUrn key", () => {
+    document.documentElement.innerHTML = `
+      <head><title>Surya Midha | Sales Navigator</title></head>
+      <body>
+        <main><h1>Sales Navigator Lead Page</h1></main>
+        <script type="application/json">
+          {"obfuscatedIdentity":"urn:li:member:7654321"}
+        </script>
+      </body>`;
+    const result = scrapeProfile(
+      document,
+      "https://www.linkedin.com/sales/lead/ACoAADPjaQgBhOUPsMBoDtn,NAME_SEARCH/"
+    );
+    expect(result.memberId).toBe("7654321");
+  });
+
+  test("refuses the generic VANILLA URN fallback when identities are ambiguous", () => {
+    document.documentElement.innerHTML = `
+      <head><title>Target Person | Sales Navigator</title></head>
+      <body>
+        <main><h1>Sales Navigator Lead Page</h1></main>
+        <div hidden>urn:li:member:111 urn%3Ali%3Amember%3A222</div>
+      </body>`;
+    const result = scrapeProfile(
+      document,
+      "https://www.linkedin.com/sales/lead/TARGETKEY,NAME_SEARCH/"
+    );
+    expect(result.memberId).toBeNull();
+    expect(result.profileUrn).toBe("TARGETKEY");
+  });
 });
 
 describe("scrapeProfile - experience-based role/company", () => {

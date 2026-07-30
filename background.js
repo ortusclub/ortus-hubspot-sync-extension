@@ -216,7 +216,8 @@ async function resolveMemberIdViaSalesNav(profileUrn) {
       diag.tried.push({ url, error: String(e).slice(0, 120) });
     }
   }
-  memberIdCache.set(profileUrn, null);
+  // Do not cache misses: Sales Navigator hydrates progressively and a failed
+  // first fetch must not poison every retry for the service worker's lifetime.
   return { memberId: null, diag };
 }
 

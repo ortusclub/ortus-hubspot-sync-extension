@@ -25,4 +25,8 @@ describe("packaged extension update integration", () => {
     expect(background).toContain("chrome.runtime.onUpdateAvailable.addListener");
     expect(background).toContain("chrome.runtime.reload()");
   });
+
+  test("does not cache failed Sales Navigator identity resolutions", () => {
+    expect(background).not.toContain("memberIdCache.set(profileUrn, null)");
+  });
 });

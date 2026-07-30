@@ -174,6 +174,16 @@
     while ((match = urnRe.exec(html))) ids.add(match[1]);
     if (ids.size === 1) return Array.from(ids)[0];
 
+    // VANILLA Sales Nav sometimes serialises the target URN behind an
+    // obfuscated key (or inside an escaped payload), so objectUrn is absent
+    // even though exactly one urn:li:member value is present. On a direct lead
+    // page a unique numeric member URN is the target; refuse this fallback when
+    // multiple identities are present rather than guessing.
+    const allUrnIds = new Set();
+    const anyUrnRe = /urn(?::|%3A)li(?::|%3A)member(?::|%3A)(\d+)/gi;
+    while ((match = anyUrnRe.exec(html))) allUrnIds.add(match[1]);
+    if (allUrnIds.size === 1) return Array.from(allUrnIds)[0];
+
     const memberIds = new Set();
     const idRe = /"memberId"\s*:\s*"?(\d+)"?/gi;
     while ((match = idRe.exec(html))) memberIds.add(match[1]);
