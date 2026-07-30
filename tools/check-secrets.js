@@ -14,10 +14,19 @@ const rules = [
   { name: "private signing key", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
 ];
 
+// Avoid hydrating or reading large tracked design assets merely to discover
+// that they contain binary data. Secrets belong in source/configuration files,
+// not in these known binary formats.
+const binaryExtensions = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
+  ".pdf", ".zip", ".crx", ".fntdata",
+]);
+
 const findings = [];
 for (const file of output.split("\0").filter(Boolean)) {
   const absolute = path.join(root, file);
   if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) continue;
+  if (binaryExtensions.has(path.extname(file).toLowerCase())) continue;
   const buffer = fs.readFileSync(absolute);
   if (buffer.includes(0)) continue;
   const text = buffer.toString("utf8");
