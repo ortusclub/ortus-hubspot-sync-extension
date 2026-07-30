@@ -118,6 +118,23 @@ async function waitFor(predicate, { maxMs = 8000, intervalMs = 100 } = {}) {
 }
 
 async function forceLazyLoad() {
+  if (/\/sales\/lead\//.test(location.pathname)) {
+    // Sales Navigator never renders the regular-profile Experience section,
+    // so isProfilePageReady() cannot become true for this page type. Waiting on
+    // it consumed the full 15s budget and raced the sidebar's dead-job timeout.
+    // Instead, wait only for Sales Nav's own target identity signals.
+    await waitFor(() => {
+      const hasName = !!document.querySelector('[data-anonymize="person-name"]');
+      const hasVanillaTitle =
+        /^.+?\s*\|\s*Sales Navigator\s*$/i.test((document.title || "").replace(/^\s*\(\d+\)\s*/, ""));
+      const html = document.documentElement.innerHTML;
+      const hasMemberIdentity =
+        /"objectUrn"\s*:\s*"urn:li:member:\d+"/i.test(html) ||
+        /"memberId"\s*:\s*"?\d+"?/i.test(html);
+      return (hasName && hasMemberIdentity) || hasVanillaTitle;
+    }, { maxMs: 8000, intervalMs: 100 });
+    return;
+  }
   if (isVanillaRender()) {
     // Vanilla: the Experience section never reaches the light DOM, so the
     // readiness gate can't pass. Don't wait 15s for a signal that can't arrive —

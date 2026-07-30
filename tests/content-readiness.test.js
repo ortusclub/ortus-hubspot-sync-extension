@@ -197,6 +197,62 @@ describe("forceLazyLoad — vanilla render skips the dead 15s wait", () => {
   });
 });
 
+describe("forceLazyLoad — Sales Navigator readiness", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    window.scrollTo = () => {};
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("resolves from Sales Nav identity signals without waiting for Experience", async () => {
+    render(`
+      <div data-anonymize="person-name">Target Person</div>
+      <div hidden>{"objectUrn":"urn:li:member:222"}</div>
+    `);
+    const api = loadContent({ pathname: "/sales/lead/TARGETKEY,NAME_SEARCH/" });
+
+    let resolved = false;
+    const done = api.forceLazyLoad().then(() => { resolved = true; });
+    await jest.advanceTimersByTimeAsync(200);
+
+    expect(resolved).toBe(true);
+    await done;
+  });
+
+  test("waits until the Sales Nav target has hydrated", async () => {
+    render('<div data-anonymize="person-name">Target Person</div>');
+    const api = loadContent({ pathname: "/sales/lead/TARGETKEY,NAME_SEARCH/" });
+
+    let resolved = false;
+    const done = api.forceLazyLoad().then(() => { resolved = true; });
+    await jest.advanceTimersByTimeAsync(500);
+    expect(resolved).toBe(false);
+
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div hidden>{"objectUrn":"urn:li:member:222"}</div>'
+    );
+    await jest.advanceTimersByTimeAsync(200);
+    expect(resolved).toBe(true);
+    await done;
+  });
+
+  test("resolves on the 2026 VANILLA Sales Nav title without legacy DOM fields", async () => {
+    render("<main><h1>Sales Navigator Lead Page</h1></main>");
+    document.title = "Jerome Emmanuel Isip | Sales Navigator";
+    const api = loadContent({ pathname: "/sales/lead/TARGETKEY,NAME_SEARCH/" });
+
+    let resolved = false;
+    const done = api.forceLazyLoad().then(() => { resolved = true; });
+    await jest.advanceTimersByTimeAsync(200);
+
+    expect(resolved).toBe(true);
+    await done;
+  });
+});
+
 describe("source-level regression tripwires", () => {
   // These inspect file STRUCTURE only (indices / boolean regex tests). They
   // never log file contents — background.js holds a live token.

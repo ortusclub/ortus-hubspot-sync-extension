@@ -46,6 +46,62 @@ describe("scrapeProfile - regular profile", () => {
   });
 });
 
+describe("scrapeProfile - Sales Navigator", () => {
+  test("extracts the legacy single member URN instead of rejecting the page", () => {
+    const doc = loadFixture("salesnav-minimal.html");
+    const result = scrapeProfile(
+      doc,
+      "https://www.linkedin.com/sales/lead/ACoAAB123,NAME_SEARCH/"
+    );
+    expect(result).toEqual({
+      pageType: "salesnav",
+      firstName: "Antonio",
+      lastName: "Varlese",
+      company: "Ortus Club",
+      jobTitle: "Founder",
+      memberId: "98750243",
+      profileUrn: "ACoAAB123",
+      linkedinBio: "",
+    });
+  });
+
+  test("anchors the member ID to the URL lead key when other identities exist", () => {
+    document.documentElement.innerHTML = `
+      <head><title>Target Person | Sales Navigator</title></head>
+      <body>
+        <div data-anonymize="person-name">Target Person</div>
+        <div data-anonymize="title">VP Sales</div>
+        <div data-anonymize="company-name">Acme</div>
+        <script type="application/json">
+          {"entityUrn":"urn:li:fsd_profile:VIEWER","objectUrn":"urn:li:member:111"}
+          {"entityUrn":"urn:li:fsd_profile:TARGETKEY","objectUrn":"urn:li:member:222",
+           "publicIdentifier":"target-person"}
+        </script>
+      </body>`;
+    const result = scrapeProfile(
+      document,
+      "https://www.linkedin.com/sales/lead/TARGETKEY,NAME_SEARCH/"
+    );
+    expect(result.memberId).toBe("222");
+    expect(result.linkedinBio).toBe("https://www.linkedin.com/in/target-person");
+  });
+
+  test("supports the 2026 VANILLA page using title + encrypted URL identity", () => {
+    document.documentElement.innerHTML = `
+      <head><title>Jerome Emmanuel Isip | Sales Navigator</title></head>
+      <body><main><h1>Sales Navigator Lead Page</h1></main></body>`;
+    const result = scrapeProfile(
+      document,
+      "https://www.linkedin.com/sales/lead/ACoAADGWWZEBtNXlq8QUS_hrS2Rr,NAME_SEARCH/"
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.firstName).toBe("Jerome");
+    expect(result.lastName).toBe("Emmanuel Isip");
+    expect(result.memberId).toBeNull();
+    expect(result.profileUrn).toBe("ACoAADGWWZEBtNXlq8QUS_hrS2Rr");
+  });
+});
+
 describe("scrapeProfile - experience-based role/company", () => {
   test("extracts company and current role from Experience section, not headline", () => {
     const doc = loadFixture("profile-with-experience.html");

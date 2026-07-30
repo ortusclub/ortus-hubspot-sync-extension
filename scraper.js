@@ -53,7 +53,8 @@
 
   function scrapeSalesNav(doc, url) {
     const html = doc.documentElement.outerHTML;
-    const memberId = extractMemberId(html, null);
+    const memberId = extractSalesNavMemberId(html, url);
+    const profileUrn = extractSalesNavLeadKey(url);
 
     const nameEl    = doc.querySelector('[data-anonymize="person-name"]');
     const titleEl   = doc.querySelector('[data-anonymize="title"]');
@@ -68,6 +69,20 @@
     } else {
       const m = /"firstName":"([^"]*)","lastName":"([^"]*)"/.exec(html);
       if (m) { firstName = m[1]; lastName = m[2]; }
+      if (!firstName) {
+        // Sales Nav's 2026 VANILLA render removed data-anonymize and profile
+        // JSON from the light DOM, but keeps "<person> | Sales Navigator" as
+        // the document title. The generic first h1 is only "Sales Navigator
+        // Lead Page", so the title is the target-correlated name signal.
+        const title = (doc.title || "").replace(/^\s*\(\d+\)\s*/, "");
+        const tm = /^(.+?)\s*\|\s*Sales Navigator\s*$/i.exec(title);
+        if (tm) {
+          const text = tm[1].trim().replace(/\s+/g, " ");
+          const space = text.indexOf(" ");
+          firstName = space === -1 ? text : text.slice(0, space);
+          lastName = space === -1 ? "" : text.slice(space + 1);
+        }
+      }
     }
 
     let jobTitle = titleEl ? titleEl.textContent.trim() : "";
@@ -86,11 +101,83 @@
     let linkedinBio = "";
     const slugMatch = /"publicIdentifier":"([^"]+)"/.exec(html);
     if (slugMatch) linkedinBio = `https://www.linkedin.com/in/${slugMatch[1]}`;
+    if (!linkedinBio) {
+      const profileLink = doc.querySelector('a[href*="linkedin.com/in/"], a[href^="/in/"]');
+      const href = profileLink && (profileLink.getAttribute("href") || "");
+      const hrefSlug = /\/in\/([^/?#]+)/i.exec(href);
+      if (hrefSlug) linkedinBio = `https://www.linkedin.com/in/${hrefSlug[1]}`;
+    }
 
-    if (!memberId)  return { error: "no_member_id" };
+    if (!memberId && !profileUrn) return { error: "no_member_id" };
     if (!firstName) return { error: "no_name" };
 
-    return { pageType: "salesnav", firstName, lastName, company, jobTitle, memberId, linkedinBio };
+    return {
+      pageType: "salesnav",
+      firstName,
+      lastName,
+      company,
+      jobTitle,
+      memberId,
+      profileUrn,
+      linkedinBio,
+    };
+  }
+
+  function extractSalesNavLeadKey(url) {
+    const pathMatch = /\/sales\/lead\/([^,/?#]+)/i.exec(url || "");
+    if (!pathMatch) return "";
+    try { return decodeURIComponent(pathMatch[1]); }
+    catch (e) { return pathMatch[1]; }
+  }
+
+  function extractSalesNavMemberId(html, url) {
+    // Regular LinkedIn profiles deliberately require slug-paired extraction
+    // (see extractMemberId below) because their SPA can retain the previous
+    // profile's hydration data. Sales Navigator has no /in/ slug, so sending it
+    // through that function makes every Sales Nav scrape return no_member_id.
+    //
+    // Anchor to the lead key in /sales/lead/<key>, when LinkedIn serialises it
+    // beside the numeric member URN. This preserves the same target-correlation
+    // guarantee without weakening the regular-profile safety rule.
+    const leadKey = extractSalesNavLeadKey(url);
+    if (/^\d+$/.test(leadKey)) return leadKey;
+
+    const readPairedMemberUrn = (anchor) => {
+      if (!anchor) return null;
+      const esc = anchor.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const forward = new RegExp(
+        `${esc}[\\s\\S]{0,4000}?"objectUrn"\\s*:\\s*"urn:li:member:(\\d+)"`,
+        "i"
+      ).exec(html);
+      if (forward) return forward[1];
+      const reverse = new RegExp(
+        `"objectUrn"\\s*:\\s*"urn:li:member:(\\d+)"[\\s\\S]{0,4000}?${esc}`,
+        "i"
+      ).exec(html);
+      return reverse ? reverse[1] : null;
+    };
+
+    const byLeadKey = readPairedMemberUrn(leadKey);
+    if (byLeadKey) return byLeadKey;
+
+    // Some Sales Nav payloads omit the URL lead key from the entity but include
+    // the target's publicIdentifier. Pair that slug to its member URN.
+    const publicId = /"publicIdentifier"\s*:\s*"([^"]+)"/i.exec(html);
+    const byPublicId = publicId && readPairedMemberUrn(publicId[1]);
+    if (byPublicId) return byPublicId;
+
+    // Legacy Sales Nav pages expose only one numeric member identity. This was
+    // the original working format and remains safe when the value is unique.
+    const ids = new Set();
+    const urnRe = /"objectUrn"\s*:\s*"urn:li:member:(\d+)"/gi;
+    let match;
+    while ((match = urnRe.exec(html))) ids.add(match[1]);
+    if (ids.size === 1) return Array.from(ids)[0];
+
+    const memberIds = new Set();
+    const idRe = /"memberId"\s*:\s*"?(\d+)"?/gi;
+    while ((match = idRe.exec(html))) memberIds.add(match[1]);
+    return memberIds.size === 1 ? Array.from(memberIds)[0] : null;
   }
 
   function extractMemberId(html, slug, canonicalSlug) {
