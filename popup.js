@@ -774,6 +774,29 @@ function setUpdateFeedback(text, state = "") {
   els.updateFeedback.textContent = text;
 }
 
+function compareVersions(a, b) {
+  const left = String(a || "").split(".").map(Number);
+  const right = String(b || "").split(".").map(Number);
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i++) {
+    const delta = (left[i] || 0) - (right[i] || 0);
+    if (delta) return delta;
+  }
+  return 0;
+}
+
+async function readPublishedVersion() {
+  const response = await fetch(
+    `https://ortusclub.github.io/ortus-hs-ext/updates.xml?t=${Date.now()}`,
+    { cache: "no-store" }
+  );
+  if (!response.ok) throw new Error("release_manifest_unavailable");
+  const xml = await response.text();
+  const match = /<updatecheck\b[^>]*\bversion=['"]([^'"]+)['"]/i.exec(xml);
+  if (!match) throw new Error("release_version_missing");
+  return match[1];
+}
+
 async function checkForExtensionUpdate() {
   if (readyUpdateVersion) {
     setUpdateFeedback(`Installing v${readyUpdateVersion}…`, "ok");
@@ -786,17 +809,25 @@ async function checkForExtensionUpdate() {
   setUpdateFeedback("Checking…");
 
   try {
+    const installedVersion = chrome.runtime.getManifest().version;
+    const publishedVersion = await readPublishedVersion();
+    if (compareVersions(publishedVersion, installedVersion) <= 0) {
+      installUpdateWhenReady = false;
+      setUpdateFeedback("You have the latest version", "ok");
+      return;
+    }
+
     const result = await chrome.runtime.requestUpdateCheck();
     if (result.status === "update_available") {
-      setUpdateFeedback(`Downloading v${result.version || "new"}…`, "ok");
+      setUpdateFeedback(`Installing v${result.version || publishedVersion}…`, "ok");
       return;
     }
 
     installUpdateWhenReady = false;
     if (result.status === "throttled") {
-      setUpdateFeedback("Chrome will check automatically", "ok");
+      setUpdateFeedback(`v${publishedVersion} queued — installs automatically`, "ok");
     } else {
-      setUpdateFeedback("You have the latest version", "ok");
+      setUpdateFeedback(`v${publishedVersion} queued — installs automatically`, "ok");
     }
   } catch (e) {
     installUpdateWhenReady = false;

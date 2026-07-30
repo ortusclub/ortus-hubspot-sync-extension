@@ -419,3 +419,15 @@ try {
 } catch (e) {
   /* sidePanel unavailable — icon click simply does nothing without a popup */
 }
+
+// Chrome downloads extension updates in the background, then waits for the
+// extension to become idle before applying them. This service worker can stay
+// alive while the side panel is open, so apply a downloaded update immediately
+// instead of requiring a colleague to close Chrome or visit chrome://extensions.
+try {
+  chrome.runtime.onUpdateAvailable.addListener(() => {
+    chrome.runtime.reload();
+  });
+} catch (e) {
+  /* update lifecycle API unavailable */
+}
