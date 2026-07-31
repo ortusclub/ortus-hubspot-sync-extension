@@ -7,10 +7,20 @@ describe("packaged extension update integration", () => {
   const html = fs.readFileSync(path.join(root, "popup.html"), "utf8");
   const popup = fs.readFileSync(path.join(root, "popup.js"), "utf8");
   const background = fs.readFileSync(path.join(root, "background.js"), "utf8");
+  const content = fs.readFileSync(path.join(root, "content.js"), "utf8");
 
   test("points Chrome at the GitHub Pages update manifest", () => {
     expect(manifest.update_url).toBe("https://ortusclub.github.io/ortus-hs-ext/updates.xml");
     expect(manifest.host_permissions).toContain("https://ortusclub.github.io/*");
+  });
+
+  test("loads the Sales Navigator API validator before the scraper content script", () => {
+    expect(manifest.content_scripts[0].js).toEqual([
+      "salesNavApi.js",
+      "scraper.js",
+      "content.js",
+    ]);
+    expect(content).toContain("selectExactProfileResource");
   });
 
   test("settings exposes a user-triggered update control", () => {

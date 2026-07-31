@@ -61,6 +61,8 @@ describe("scrapeProfile - Sales Navigator", () => {
       jobTitle: "Founder",
       memberId: "98750243",
       profileUrn: "ACoAAB123",
+      salesNavAuthType: "name",
+      salesNavAuthToken: "_URX",
       linkedinBio: "",
     });
   });

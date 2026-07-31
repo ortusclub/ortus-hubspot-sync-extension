@@ -55,6 +55,9 @@
     const html = doc.documentElement.outerHTML;
     const memberId = extractSalesNavMemberId(html, url);
     const profileUrn = extractSalesNavLeadKey(url);
+    const authMatch = /\/sales\/lead\/[^,/?#]+,([^,/?#]+),([^/?#]+)/i.exec(url || "");
+    const salesNavAuthType = authMatch ? decodeURIComponent(authMatch[1]) : "name";
+    const salesNavAuthToken = authMatch ? decodeURIComponent(authMatch[2]) : "_URX";
 
     const nameEl    = doc.querySelector('[data-anonymize="person-name"]');
     const titleEl   = doc.querySelector('[data-anonymize="title"]');
@@ -113,6 +116,8 @@
       jobTitle,
       memberId,
       profileUrn,
+      salesNavAuthType,
+      salesNavAuthToken,
       linkedinBio,
     };
   }

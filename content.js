@@ -324,6 +324,62 @@ function readCsrfToken() {
   return m ? m[1].replace(/^"|"$/g, "") : null;
 }
 
+async function fetchTargetCorrelatedSalesNavProfile(scrape) {
+  if (!scrape || scrape.pageType !== "salesnav" || !scrape.profileUrn) return scrape;
+  let url = "";
+  await waitFor(() => {
+    const resourceUrls = performance
+      .getEntriesByType("resource")
+      .map((entry) => entry.name);
+    url = window.OrtusSalesNavApi.selectExactProfileResource(
+      resourceUrls,
+      scrape.profileUrn
+    );
+    return Boolean(url);
+  }, { maxMs: 5000, intervalMs: 100 });
+  if (!url) {
+    scrape._salesNavApiDiag = { error: "exact_profile_resource_missing" };
+    return scrape;
+  }
+  try {
+    const response = await fetch(url, {
+      credentials: "include",
+      headers: {
+        "csrf-token": readCsrfToken() || "",
+        "x-restli-protocol-version": "2.0.0",
+        "accept": "application/json",
+      },
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      scrape._salesNavApiDiag = { status: response.status, bodyLen: text.length };
+      return scrape;
+    }
+    const expectedName = [scrape.firstName, scrape.lastName].filter(Boolean).join(" ");
+    const parsed = window.OrtusSalesNavApi.parseSalesNavProfileResponse(text, expectedName);
+    scrape._salesNavApiDiag = {
+      status: response.status,
+      bodyLen: text.length,
+      matchedBy: parsed.error ? null : "url-lead-key-and-exact-name",
+      error: parsed.error || null,
+    };
+    if (parsed.error) return scrape;
+    return {
+      ...scrape,
+      memberId: parsed.memberId,
+      firstName: parsed.firstName || scrape.firstName,
+      lastName: parsed.lastName || scrape.lastName,
+      jobTitle: parsed.jobTitle || scrape.jobTitle,
+      company: parsed.company || scrape.company,
+      linkedinBio: parsed.linkedinBio || "",
+      _salesNavApiDiag: scrape._salesNavApiDiag,
+    };
+  } catch (e) {
+    scrape._salesNavApiDiag = { error: String(e).slice(0, 160) };
+    return scrape;
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg && msg.type === "SCRAPE_PROFILE") {
     (async () => {
@@ -339,9 +395,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           }
           if (slug) lastScrapedSlug = slug;
         }
-        const result = window.OrtusScraper.scrapeProfile(getProfileDoc(), location.href);
+        let result = window.OrtusScraper.scrapeProfile(getProfileDoc(), location.href);
+        result = await fetchTargetCorrelatedSalesNavProfile(result);
         result._csrf = readCsrfToken();
-        sendResponse({ ok: true, result, debug: gatherDebug() });
+        const debug = gatherDebug();
+        if (result._salesNavApiDiag) debug.salesNavApi = result._salesNavApiDiag;
+        sendResponse({ ok: true, result, debug });
       } catch (e) {
         sendResponse({ ok: false, error: e.message || String(e), debug: gatherDebug() });
       }

@@ -1,7 +1,7 @@
 // background.js — service worker. Calls the ortus-hs-proxy Cloudflare Worker,
 // which holds the HubSpot token server-side. No HubSpot token in this bundle.
 
-importScripts("hubspotClient.js");
+importScripts("hubspotClient.js", "salesNavApi.js");
 
 // === CONFIG ===
 // Only the low-value proxy gate key + the (non-secret) portal id live here now.
@@ -236,7 +236,7 @@ async function getProfileState() {
   if (scrape.error) return { state: mapScrapeErrorState(scrape.error), debug: scrape._debug || null };
 
   const needsRole = !scrape.jobTitle || !scrape.company;
-  if (!scrape.memberId || needsRole) {
+  if (!scrape.memberId || !scrape.jobTitle || !scrape.company) {
     // Voyager dash/profiles API: resolves the memberId when the in-page hydration
     // is missing, AND supplies job title + company when LinkedIn's SDUI profile
     // DOM is unscrapeable (the 2026 "vanilla" render).
@@ -259,7 +259,7 @@ async function getProfileState() {
     }
     // If Voyager refused (rare 403 / no csrf), fall back to the SalesNav lead
     // page HTML for the encrypted URN.
-    if (!scrape.memberId && scrape.profileUrn) {
+    if (!scrape.memberId && scrape.profileUrn && scrape.pageType !== "salesnav") {
       const { memberId, diag } = await resolveMemberIdViaSalesNav(scrape.profileUrn);
       scrape.memberId = memberId;
       scrape._debug = { ...(scrape._debug || {}), salesNav: diag };

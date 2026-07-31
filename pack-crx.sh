@@ -24,7 +24,7 @@ STAGE="build/ortus-ext"
 rm -rf build
 mkdir -p "$STAGE/icons" dist
 
-cp manifest.json background.js content.js scraper.js hubspotClient.js \
+cp manifest.json background.js content.js scraper.js hubspotClient.js salesNavApi.js \
    popupLogic.js popup.html popup.js "$STAGE/"
 cp icons/hs-16.png icons/hs-32.png icons/hs-48.png icons/hs-128.png "$STAGE/icons/"
 
