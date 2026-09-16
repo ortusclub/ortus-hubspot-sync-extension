@@ -39,10 +39,14 @@
   // Fields differ from the post-overlay suggestion → the operator MANUALLY
   // edited. Controls the nav-hold: an untouched auto-fill suggestion is not
   // manual work and must not block navigating to the next profile.
-  function manualDirty(cur, suggestion, noteDraft) {
+  //
+  // A half-written note deliberately does NOT count. It used to, which froze
+  // the panel on the previous person until the note was saved or cleared.
+  // popup.js stashes the note per profile slug instead, so switching away
+  // keeps the draft rather than blocking to protect it.
+  function manualDirty(cur, suggestion) {
     return str(cur && cur.status) !== str(suggestion && suggestion.status)
-        || str(cur && cur.tag)    !== str(suggestion && suggestion.tag)
-        || str(noteDraft).trim() !== "";
+        || str(cur && cur.tag)    !== str(suggestion && suggestion.tag);
   }
 
   function noteErrorText(response, fallback) {

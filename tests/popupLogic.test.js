@@ -66,13 +66,16 @@ describe("manualDirty — fields vs the post-overlay suggestion (controls the na
     const suggestion = { status: "In Communication (Active)", tag: "warm-intro" };
     expect(manualDirty({ status: "Dropped", tag: "warm-intro" }, suggestion)).toBe(true);
   });
-  test("true when the operator has typed a note draft", () => {
+  // A half-written note used to make this true, which froze the panel on the
+  // previous person until the note was saved or cleared. popup.js stashes the
+  // draft per profile slug now, so the note is kept WITHOUT blocking the nav.
+  test("false when the operator has typed a note draft — a note never holds the nav", () => {
     const suggestion = { status: "New", tag: "event-x" };
-    expect(manualDirty({ ...suggestion }, suggestion, "Call again next week")).toBe(true);
+    expect(manualDirty({ ...suggestion }, suggestion, "Call again next week")).toBe(false);
   });
-  test("false for a whitespace-only note draft", () => {
+  test("still true on a real field edit even with a note in progress", () => {
     const suggestion = { status: "New", tag: "event-x" };
-    expect(manualDirty({ ...suggestion }, suggestion, "   ")).toBe(false);
+    expect(manualDirty({ status: "Dropped", tag: "event-x" }, suggestion, "note text")).toBe(true);
   });
 });
 

@@ -245,3 +245,18 @@ describe("scrapeProfile - experience-based role/company", () => {
     expect(result.linkedinBio).toBe("https://www.linkedin.com/in/santosh-kumar-yamsani-8a75755");
   });
 });
+
+// v0.1.61 — LinkedIn's VANILLA/SDUI render keeps the profile h1 in shadow DOM,
+// so getProfileDoc() falls back to the feed shell and no name is readable. The
+// scrape must still hand back the slug so background.js can resolve the name
+// from Voyager; bailing with a bare { error: "no_name" } threw that away and
+// left the panel on "Couldn't read the name for this profile."
+describe("scrapeProfile - vanilla render (no readable name)", () => {
+  test("returns the slug-derived linkedinBio instead of a bare no_name error", () => {
+    document.documentElement.innerHTML = "<head><title>Feed | LinkedIn</title></head><body></body>";
+    const result = scrapeProfile(document, "https://www.linkedin.com/in/fleming-peck-phd-6221379a/");
+    expect(result.error).toBeUndefined();
+    expect(result.firstName).toBe("");
+    expect(result.linkedinBio).toBe("https://www.linkedin.com/in/fleming-peck-phd-6221379a");
+  });
+});

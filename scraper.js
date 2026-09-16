@@ -32,9 +32,14 @@
     const { jobTitle, company } = extractRoleAndCompany(doc);
     const linkedinBio = slug ? `https://www.linkedin.com/in/${slug}` : "";
 
-    if (!firstName) return { error: "no_name" };
     if (!memberId && !profileUrn && !linkedinBio) return { error: "no_member_id" };
 
+    // No name is NOT fatal here. On LinkedIn's 2026 VANILLA/SDUI render the
+    // profile h1 lives in shadow DOM, getProfileDoc() falls back to the feed
+    // shell, and nothing in the light DOM carries the name. Returning a bare
+    // { error: "no_name" } threw away the slug, so background.js bailed before
+    // reaching the Voyager lookup that resolves the name from that slug. Hand
+    // the partial scrape back instead; background.js decides if it's fatal.
     return { pageType: "profile", firstName, lastName, company, jobTitle, memberId, profileUrn, linkedinBio };
   }
 

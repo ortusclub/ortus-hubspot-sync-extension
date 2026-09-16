@@ -159,6 +159,7 @@
     font-family: var(--mono); font-size: 9.5px;
     letter-spacing: 0.1em; text-transform: uppercase;
   }
+  .warning-chip[hidden] { display: none; }   /* inline-flex beats [hidden] without this */
   .warning-chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
 
   /* CTAs */
@@ -515,18 +516,13 @@
           </div>
           <div class="was-line" id="wasTag" hidden></div>
         </div>
-        <div class="manage-actions">
-          <span id="saveFeedback" class="save-feedback" role="status" aria-live="polite"></span>
-          <button id="saveFields" class="save-btn" type="button" disabled>Save</button>
-        </div>
         <div class="note-composer">
           <label for="noteInput">Note</label>
           <div class="control">
             <textarea id="noteInput" rows="4" maxlength="65536" placeholder="Add a note to this contact"></textarea>
           </div>
           <div class="manage-actions">
-            <span id="noteFeedback" class="save-feedback" role="status" aria-live="polite"></span>
-            <button id="addNote" class="save-btn" type="button" disabled>Add note</button>
+            <span id="saveFeedback" class="save-feedback" role="status" aria-live="polite"></span>
           </div>
         </div>
       </div>

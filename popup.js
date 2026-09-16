@@ -33,11 +33,8 @@ const els = {
   manageBlock:  $("manageBlock"),
   leadStatus:   $("leadStatus"),
   tagInput:     $("tagInput"),
-  saveFields:   $("saveFields"),
   saveFeedback: $("saveFeedback"),
   noteInput:    $("noteInput"),
-  addNote:      $("addNote"),
-  noteFeedback: $("noteFeedback"),
   suggestBanner: $("suggestBanner"),
   suggestRevert: $("suggestRevert"),
   wasStatus:    $("wasStatus"),
@@ -73,6 +70,7 @@ let readyUpdateVersion = "";
 // to a non-profile page or another app tab — it stays on the last profile.
 let shownSlug = "";      // slug of the profile currently rendered ("" = idle/none)
 let pendingSlug = "";    // a newer profile held back because edits are unsaved
+const noteDrafts = {};   // slug → half-written note, restored when you return
 let syncing = false;     // guard against overlapping syncToActiveTab() runs
 let panelWindowId = null; // the browser window this side panel is docked in
 let lastVoyName = "-";   // TEMP DIAG: Voyager name-extraction result of last load
@@ -95,8 +93,7 @@ function clearBody() {
   if (els.wasTag) { els.wasTag.hidden = true; els.wasTag.innerHTML = ""; }
   if (els.saveFeedback) { els.saveFeedback.className = "save-feedback"; els.saveFeedback.textContent = ""; }
   if (els.noteInput) els.noteInput.value = "";
-  if (els.noteFeedback) { els.noteFeedback.className = "save-feedback"; els.noteFeedback.textContent = ""; }
-  if (els.addNote) els.addNote.disabled = true;
+  if (els.saveFeedback) { els.saveFeedback.className = "save-feedback"; els.saveFeedback.textContent = ""; }
   clearLoadingHint();
 }
 
@@ -157,6 +154,11 @@ function renderDiagnostic(debug) {
       const rr = debug.voyager.role;
       lines.push(`  role: n=${fmt(rr.n)} jt=${fmt(rr.jt)} co=${fmt(rr.co)}${rr.err ? " err:" + fmt(rr.err, 50) : ""}`);
       if (rr.types && rr.types.length) lines.push(`  types: ${fmt(rr.types.join(","), 160)}`);
+      if (rr.nTitled != null) lines.push(`  titled: ${fmt(rr.nTitled)}`);
+      if (rr.shape) {
+        lines.push(`  shape: ${fmt(rr.shape.t, 40)} companyName:${rr.shape.co} company:${rr.shape.c}`);
+        lines.push(`  keys:  ${fmt(rr.shape.keys, 200)}`);
+      }
     }
   }
   if (debug.salesNav) {
@@ -273,8 +275,11 @@ function render(payload) {
       renderMeta(payload.scrape.memberId);
       renderWarnings(payload.scrape);
       if (!payload.scrape.jobTitle && !payload.scrape.company) renderDiagnostic(payload.scrape._debug);
+      // The form is shown BEFORE the contact exists, so status, tag and note
+      // can all be filled in and committed by the single button.
+      renderManage({});
       els.actions.hidden = false;
-      els.actions.appendChild(ctaPrimary("Push to HubSpot", onPushClick));
+      els.actions.appendChild(ctaPrimary("Add to HubSpot & save", onSaveAll));
       return;
     }
 
@@ -295,7 +300,7 @@ function render(payload) {
         ? `Added <a href="${escape(payload.contact.url)}" target="_blank">in HubSpot since ${since}</a>`
         : `<a href="${escape(payload.contact.url)}" target="_blank">View in HubSpot ›</a>`;
       els.actions.hidden = false;
-      els.actions.appendChild(ctaPrimary("Update", onUpdateClick));
+      els.actions.appendChild(ctaPrimary("Save all", onSaveAll));
       els.actions.appendChild(ctaGhost("Skip", () => window.close()));
       renderManage(payload.contact.properties);
       return;
@@ -416,9 +421,9 @@ function renderManage(properties) {
   renderSuggestionHints(ov.overlaid);
   els.saveFeedback.className = "save-feedback";
   els.saveFeedback.textContent = "";
-  els.noteInput.value = "";
-  els.noteFeedback.className = "save-feedback";
-  els.noteFeedback.textContent = "";
+  els.noteInput.value = noteDrafts[shownSlug] || "";
+  els.saveFeedback.className = "save-feedback";
+  els.saveFeedback.textContent = "";
   els.manageBlock.hidden = false;
   refreshSaveEnabled();
   refreshNoteEnabled();
@@ -442,25 +447,25 @@ function currentFields() {
   return { status: els.leadStatus.value, tag: els.tagInput.value };
 }
 
-// Fields differ from the contact's real stored values → there is something to
-// Save. Controls the Save button.
-function saveDirty() {
-  return OrtusPopupLogic.saveDirty(currentFields(), loadedFields);
-}
-
 // Fields differ from the post-overlay suggestion → the operator MANUALLY edited.
 // Controls the nav-hold: an untouched auto-fill suggestion must not block moving
 // to the next profile (it is re-suggested there anyway).
 function manualDirty() {
-  return OrtusPopupLogic.manualDirty(currentFields(), suggestionBaseline, els.noteInput.value);
+  return OrtusPopupLogic.manualDirty(currentFields(), suggestionBaseline);
 }
 
-function refreshSaveEnabled() {
-  els.saveFields.disabled = !saveDirty();
-}
+// Save all is always available: even with no edits it still refreshes the
+// contact from the profile, so there is nothing to gate on.
+function refreshSaveEnabled() {}
+function refreshNoteEnabled() {}
 
-function refreshNoteEnabled() {
-  els.addNote.disabled = !lastContactId || els.noteInput.value.trim() === "";
+// Keep whatever is in the note box against the profile it was written for, so
+// navigating away can never lose it.
+function stashNoteDraft() {
+  if (!shownSlug) return;
+  const draft = els.noteInput.value;
+  if (draft.trim()) noteDrafts[shownSlug] = draft;
+  else delete noteDrafts[shownSlug];
 }
 
 // Persist the just-saved values so the next profile can carry them over.
@@ -507,88 +512,112 @@ function fieldsErrorText(state) {
   }
 }
 
-async function onSaveFields() {
-  // NOTE: temporary diagnostic build (v0.1.36) — this surfaces the exact failure
-  // reason on screen so we can find the root cause without DevTools. Will be
-  // tidied back to fieldsErrorText() once the cause is known.
-  if (!lastContactId) {
-    els.saveFeedback.className = "save-feedback show err";
-    els.saveFeedback.textContent = "No contact id — reopen the popup";
-    return;
-  }
-  const props = changedFieldProps();
-  if (Object.keys(props).length === 0) {
-    els.saveFeedback.className = "save-feedback show";
-    els.saveFeedback.textContent = "No changes to save";
-    refreshSaveEnabled();
-    return;
-  }
-  els.saveFields.disabled = true;
-  els.saveFeedback.className = "save-feedback show";
-  els.saveFeedback.textContent = "Saving…";
-  let r;
-  try {
-    r = await chrome.runtime.sendMessage({ type: "UPDATE_FIELDS", contactId: lastContactId, props });
-  } catch (e) {
-    els.saveFeedback.className = "save-feedback show err";
-    els.saveFeedback.textContent = "Save crashed: " + String((e && e.message) || e).slice(0, 90);
-    refreshSaveEnabled();
-    return;
-  }
-  if (r && r.state === "fields_saved") {
-    lastContactProperties = { ...(lastContactProperties || {}), ...props };
-    loadedFields = { status: els.leadStatus.value, tag: els.tagInput.value };
-    suggestionBaseline = { status: els.leadStatus.value, tag: els.tagInput.value };
-    rememberLastUsed(els.leadStatus.value, els.tagInput.value); // carry to next profile
-    els.suggestBanner.hidden = true;
-    els.wasStatus.hidden = true; els.wasStatus.innerHTML = "";
-    els.wasTag.hidden = true; els.wasTag.innerHTML = "";
-    els.saveFeedback.className = "save-feedback show ok";
-    els.saveFeedback.textContent = "✓ Saved";
-  } else {
-    els.saveFeedback.className = "save-feedback show err";
-    const why = r ? (r.state || "(no state field)") : "(no response from background)";
-    const detail = r && r.detail ? " — " + String(r.detail).slice(0, 80) : "";
-    els.saveFeedback.textContent = "Save failed: " + why + detail;
-  }
-  refreshSaveEnabled();
-  consumePendingIfClean(); // edits resolved — load any profile held back
+// ── Save all ──────────────────────────────────────────────────────────────
+// One button commits everything the panel is holding, in the order HubSpot
+// needs: the contact has to exist before fields or a note can attach to it.
+// Each step is a separate HubSpot call, so a later step can fail after an
+// earlier one succeeded. When that happens we keep the inputs exactly as the
+// operator left them and keep lastContactId, so pressing the button again
+// retries the failed step instead of creating a second contact.
+
+function say(kind, text) {
+  els.saveFeedback.className = "save-feedback show" + (kind ? " " + kind : "");
+  els.saveFeedback.textContent = text;
 }
 
-async function onAddNote() {
-  const body = els.noteInput.value.trim();
-  if (!lastContactId || !body) {
-    refreshNoteEnabled();
-    return;
-  }
-
-  els.addNote.disabled = true;
-  els.noteFeedback.className = "save-feedback show";
-  els.noteFeedback.textContent = "Adding…";
-
-  let r;
+async function send(msg) {
   try {
-    r = await chrome.runtime.sendMessage({ type: "ADD_NOTE", contactId: lastContactId, body });
+    const r = await chrome.runtime.sendMessage(msg);
+    return { r, ok: !!r, why: r ? "" : "no response from background" };
   } catch (e) {
-    els.noteFeedback.className = "save-feedback show err";
-    els.noteFeedback.textContent = "Could not add note";
-    refreshNoteEnabled();
-    return;
+    return { r: null, ok: false, why: String((e && e.message) || e).slice(0, 90) };
   }
+}
 
-  if (r && r.state === "note_added") {
-    els.noteInput.value = "";
-    els.noteFeedback.className = "save-feedback show ok";
-    els.noteFeedback.textContent = "Note added";
-  } else {
-    els.noteFeedback.className = "save-feedback show err";
-    els.noteFeedback.textContent = OrtusPopupLogic.noteErrorText(
-      r,
-      fieldsErrorText(r && r.state)
-    );
+function stepFailure(r, why) {
+  if (why) return why;
+  const state = r && r.state;
+  const detail = r && r.detail ? " — " + String(r.detail).slice(0, 80) : "";
+  return fieldsErrorText(state) + detail;
+}
+
+async function onSaveAll() {
+  if (!lastScrape) return;
+  const btn = els.actions.querySelector(".cta");
+  if (btn) btn.disabled = true;
+  const done = [];
+
+  try {
+    // 1 — the contact itself. Create it when it's new, refresh the scraped
+    //     fields (role, company, membership id) when it already exists.
+    const isNew = !lastContactId;
+    say("", isNew ? "Adding to HubSpot…" : "Updating…");
+    const step1 = isNew
+      ? await send({ type: "PUSH_TO_HUBSPOT", scrape: lastScrape })
+      : await send({
+          type: "UPDATE_CONTACT",
+          contactId: lastContactId,
+          scrape: lastScrape,
+          contactProperties: lastContactProperties,
+        });
+    const ok1 = step1.ok && step1.r &&
+      (step1.r.state === "success_pushed" || step1.r.state === "success_updated");
+    if (!ok1) {
+      say("err", (isNew ? "Couldn't add to HubSpot: " : "Couldn't update: ") +
+                 stepFailure(step1.r, step1.why));
+      return;
+    }
+    lastContactId = step1.r.contact.id;
+    lastContactProperties = step1.r.contact.properties || lastContactProperties || {};
+    if (step1.r.scrape) lastScrape = step1.r.scrape;
+    renderRole(lastScrape.jobTitle, lastScrape.company);
+    setEyebrow("Already in HubSpot", "ok");
+    els.sinceLine.hidden = false;
+    els.sinceLine.innerHTML = `<a href="${escape(step1.r.contact.url)}" target="_blank">View in HubSpot ›</a>`;
+    done.push(isNew ? "Added" : "Updated");
+
+    // 2 — status and tag, only the ones that actually differ.
+    const props = changedFieldProps();
+    if (Object.keys(props).length > 0) {
+      say("", "Saving status & tag…");
+      const step2 = await send({ type: "UPDATE_FIELDS", contactId: lastContactId, props });
+      if (!step2.ok || !step2.r || step2.r.state !== "fields_saved") {
+        say("err", done.join(", ") + ", but status & tag failed: " +
+                   stepFailure(step2.r, step2.why));
+        return;
+      }
+      lastContactProperties = { ...(lastContactProperties || {}), ...props };
+      loadedFields = { status: els.leadStatus.value, tag: els.tagInput.value };
+      suggestionBaseline = { status: els.leadStatus.value, tag: els.tagInput.value };
+      rememberLastUsed(els.leadStatus.value, els.tagInput.value); // carry to next profile
+      els.suggestBanner.hidden = true;
+      els.wasStatus.hidden = true; els.wasStatus.innerHTML = "";
+      els.wasTag.hidden = true; els.wasTag.innerHTML = "";
+      done.push("status & tag");
+    }
+
+    // 3 — the note, if one was written.
+    const body = els.noteInput.value.trim();
+    if (body) {
+      say("", "Adding note…");
+      const step3 = await send({ type: "ADD_NOTE", contactId: lastContactId, body });
+      if (!step3.ok || !step3.r || step3.r.state !== "note_added") {
+        say("err", done.join(", ") + ", but the note failed: " +
+                   OrtusPopupLogic.noteErrorText(step3.r, stepFailure(step3.r, step3.why)));
+        return;
+      }
+      els.noteInput.value = "";
+      delete noteDrafts[shownSlug];
+      done.push("note");
+    }
+
+    say("ok", "✓ " + done.join(" · "));
+    // The contact exists now, so a second press updates rather than creates.
+    if (btn) btn.querySelector("span").textContent = "Save all";
+  } finally {
+    if (btn) btn.disabled = false;
+    consumePendingIfClean(); // edits resolved — load any profile held back
   }
-  refreshNoteEnabled();
-  consumePendingIfClean();
 }
 
 async function loadState() {
@@ -600,31 +629,6 @@ async function loadState() {
     lastVoyName = vn ? `${vn.matched || "?"}/f:${vn.f || "n"}/l:${vn.l || "n"}` : "-";
   } catch (e) { lastVoyName = "-"; }
   setNavDiag(shownSlug, "after-load");
-}
-
-async function onPushClick() {
-  if (!lastScrape) return;
-  render({ state: "checking" });
-  const r = await chrome.runtime.sendMessage({ type: "PUSH_TO_HUBSPOT", scrape: lastScrape });
-  render(r);
-}
-
-async function onUpdateClick() {
-  if (!lastScrape || !lastContactId) return;
-  if (manualDirty()) {
-    const feedback = els.noteInput.value.trim() ? els.noteFeedback : els.saveFeedback;
-    feedback.className = "save-feedback show err";
-    feedback.textContent = "Save or clear pending edits before updating";
-    return;
-  }
-  render({ state: "checking" });
-  const r = await chrome.runtime.sendMessage({
-    type: "UPDATE_CONTACT",
-    contactId: lastContactId,
-    scrape: lastScrape,
-    contactProperties: lastContactProperties,
-  });
-  render(r);
 }
 
 // ── Side-panel navigation tracking ──
@@ -682,13 +686,13 @@ async function syncToActiveTab() {
     if (polled === shownSlug) { action = "skip:same"; return; }
     if (manualDirty()) {                                     // edit-safe — hold (manual edits only)
       pendingSlug = polled;
-      const feedback = els.noteInput.value.trim() ? els.noteFeedback : els.saveFeedback;
-      feedback.className = "save-feedback show";
-      feedback.textContent = "Newer profile open — save or clear to switch";
+      els.saveFeedback.className = "save-feedback show";
+      els.saveFeedback.textContent = "Newer profile open. Save or revert the status & tag to switch.";
       action = "hold:dirty";
       return;
     }
     pendingSlug = "";
+    stashNoteDraft();
     shownSlug = polled;
     action = "load:" + polled;
     loadState();                                            // fire-and-forget
@@ -727,14 +731,12 @@ els.tagInput.addEventListener("input", () => {
   refreshSaveEnabled();
   consumePendingIfClean(); // reverted to clean → load any profile held back
 });
-els.saveFields.addEventListener("click", onSaveFields);
 els.noteInput.addEventListener("input", () => {
-  els.noteFeedback.className = "save-feedback";
-  els.noteFeedback.textContent = "";
+  els.saveFeedback.className = "save-feedback";
+  els.saveFeedback.textContent = "";
   refreshNoteEnabled();
   consumePendingIfClean();
 });
-els.addNote.addEventListener("click", onAddNote);
 els.suggestRevert.addEventListener("click", revertSuggestion);
 els.carryToggle.addEventListener("change", () => {
   carryEnabled = els.carryToggle.checked;

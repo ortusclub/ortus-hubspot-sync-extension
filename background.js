@@ -68,7 +68,26 @@ function extractRoleFromVoyagerText(text) {
         (typeof e.companyName === "string" || typeof e.company === "string");
     });
     if (!positions.length) {
-      return { jobTitle: "", company: "", n: 0, types: Object.keys(typeSet).slice(0, 14) };
+      // Two very different causes look identical as "n=0": the profile really
+      // lists no jobs, or a Position entity IS there but holds its company as
+      // an object/urn rather than the string this filter requires. Report the
+      // shape of the first title-bearing entity so one screenshot tells us
+      // which, instead of another round of guessing.
+      const titled = inc.filter(function (e) {
+        return e && typeof e.title === "string" && e.title;
+      });
+      const first = titled[0];
+      return {
+        jobTitle: "", company: "", n: 0,
+        types: Object.keys(typeSet).slice(0, 14),
+        nTitled: titled.length,
+        shape: first ? {
+          t: String(first.$type || "?").split(".").pop(),
+          co: typeof first.companyName,
+          c: typeof first.company,
+          keys: Object.keys(first).slice(0, 12).join("|"),
+        } : null,
+      };
     }
     const current = positions.filter(function (p) {
       return p.dateRange && (p.dateRange.end == null);
@@ -236,7 +255,7 @@ async function getProfileState() {
   if (scrape.error) return { state: mapScrapeErrorState(scrape.error), debug: scrape._debug || null };
 
   const needsRole = !scrape.jobTitle || !scrape.company;
-  if (!scrape.memberId || !scrape.jobTitle || !scrape.company) {
+  if (!scrape.memberId || !scrape.jobTitle || !scrape.company || !scrape.firstName) {
     // Voyager dash/profiles API: resolves the memberId when the in-page hydration
     // is missing, AND supplies job title + company when LinkedIn's SDUI profile
     // DOM is unscrapeable (the 2026 "vanilla" render).
@@ -264,6 +283,11 @@ async function getProfileState() {
       scrape.memberId = memberId;
       scrape._debug = { ...(scrape._debug || {}), salesNav: diag };
     }
+  }
+  // Voyager is the only name source on the VANILLA render (shadow-DOM h1), so
+  // the name verdict comes AFTER the lookup above, never before it.
+  if (!scrape.firstName) {
+    return { state: "scrape_failed_name", scrape, debug: scrape._debug || null };
   }
   if (!scrape.memberId) {
     return { state: "scrape_failed_id", scrape, debug: scrape._debug || null };

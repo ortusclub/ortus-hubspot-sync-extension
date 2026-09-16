@@ -23,6 +23,7 @@ zip -q "$OUT" \
   content.js \
   scraper.js \
   hubspotClient.js \
+  salesNavApi.js \
   popupLogic.js \
   popup.html \
   popup.js \
